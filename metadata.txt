@@ -1,0 +1,39 @@
+# This file contains metadata for your plugin. Since 
+# version 2.0 of QGIS this is the proper way to supply 
+# information about a plugin. The old method of 
+# embedding metadata in __init__.py will 
+# is no longer supported since version 2.0.
+
+# This file should be included when you package your plugin.# Mandatory items:
+
+[general]
+name=Orientation Maps Creator
+qgisMinimumVersion=2.0
+description=Tool to create orientation maps.
+version=0.1
+author=Heinrich Löwen
+email=loewen.heinrich@uni-muenster.de
+
+about=Provide a brief description of the plugin and its purpose.
+
+tracker=https://github.com/heinrichloewen/orientationMapsCreator/issues
+repository=https://github.com/heinrichloewen/orientationMapsCreator
+# End of mandatory metadata
+
+# Recommended items:
+
+# Uncomment the following line and add your changelog:
+# changelog=
+
+# Tags are comma separated with spaces allowed
+tags=database, openstreetmap, osm, processing, postgis
+
+homepage=https://github.com/heinrichloewen/orientationMapsCreator/issues
+category=Plugins
+icon=icon.png
+# experimental flag
+experimental=True
+
+# deprecated flag (applies to the whole plugin, not just a single version)
+deprecated=False
+

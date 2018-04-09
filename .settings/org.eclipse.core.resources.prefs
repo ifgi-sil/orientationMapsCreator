@@ -1,0 +1,8 @@
+eclipse.preferences.version=1
+encoding//connectors/postgis.py=utf-8
+encoding//functions/dijkstra.py=utf-8
+encoding/__init__.py=utf-8
+encoding/dbConnection.py=utf-8
+encoding/orientationMapsCreator.py=utf-8
+encoding/orientationMapsCreator_dockwidget.py=utf-8
+encoding/orientationMapsCreator_utils.py=utf-8
