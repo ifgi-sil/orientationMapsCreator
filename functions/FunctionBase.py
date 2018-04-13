@@ -11,6 +11,7 @@ class FunctionBase(object):
     exportMergeButton = False
     exportEdgeBase = False
     commonControls = [
+        'lblEdgesSchema',       'lineEditEdgesSchema',
         'lblGeometryColumn',    'lineEditGeometryColumn',
         'lblIDColumn',          'lineEditIDColumn',
         'lblSourceColumn',      'lineEditSourceColumn',
@@ -88,8 +89,16 @@ class FunctionBase(object):
                 ELSE ST_Reverse(%(edge_table)s.%(geometry)s)
               END AS path_geom,
               result.*, %(edge_table)s.*
-            FROM %(edge_table)s JOIN result
+            FROM %(edge_schema)s.%(edge_table)s JOIN result
               ON %(edge_table)s.%(id)s = result._edge ORDER BY result.seq
+            """ % args
+        return query
+    
+    def getSaveJoinResultWithEdgeTable(self, args):
+        args['merged_result_query'] = self.getExportQuery(args)
+        
+        query = """
+            CREATE TABLE tmp.%(tmp_table)s AS (%(merged_result_query)s)
             """ % args
         return query
 
@@ -104,7 +113,7 @@ class FunctionBase(object):
                   THEN %(edge_table)s.%(geometry)s
                 ELSE ST_Reverse(%(edge_table)s.%(geometry)s)
               END AS path_geom
-            FROM %(edge_table)s JOIN result
+            FROM %(edge_schema)s.%(edge_table)s JOIN result
               ON %(edge_table)s.%(id)s = result._edge 
             """ % args
 
@@ -143,7 +152,7 @@ class FunctionBase(object):
                   THEN %(edge_table)s.%(geometry)s
                 ELSE ST_Reverse(%(edge_table)s.%(geometry)s)
               END AS path_geom
-            FROM %(edge_table)s JOIN result
+            FROM %(edge_schema)s.%(edge_table)s JOIN result
               ON %(edge_table)s.%(id)s = result._edge 
             """ % args
 
@@ -187,7 +196,7 @@ class FunctionBase(object):
             args['result_node_id'] = row[5]
             args['result_edge_id'] = row[6]
             args['result_cost'] = row[7]
-            if args['result_path_id'] != cur_path_id:
+            if args['result_path_id'] != cur_path_id:       #Init QgsRubberBand if not yet exists
                 cur_path_id = args['result_path_id']
                 if rubberBand:
                     resultPathsRubberBands.append(rubberBand)
@@ -197,8 +206,9 @@ class FunctionBase(object):
                 rubberBand.setColor(QColor(255, 0, 0, 128))
                 rubberBand.setWidth(4)
 
-            if args['result_edge_id'] != -1:
-                query2 = """
+            if args['result_edge_id'] != -1:                #Add Line Segment to the rubber band
+                #Retrieve geometry as text of the particular edge from the orignal edge table, because it is not in the dijkstra results
+                query2 = """        
                     SELECT ST_AsText(%(transform_s)s%(geometry)s%(transform_e)s) FROM %(edge_schema)s.%(edge_table)s
                         WHERE %(source)s = %(result_node_id)d AND %(id)s = %(result_edge_id)d
                     UNION
@@ -234,10 +244,10 @@ class FunctionBase(object):
                 args['result_cost'] = row[3]
                 if args['result_edge_id'] != -1:
                     query2 = """
-                        SELECT ST_AsText(%(transform_s)s%(geometry)s%(transform_e)s) FROM %(edge_table)s
+                        SELECT ST_AsText(%(transform_s)s%(geometry)s%(transform_e)s) FROM %(edge_schema)s.%(edge_table)s
                             WHERE %(source)s = %(result_node_id)d AND %(id)s = %(result_edge_id)d
                         UNION
-                        SELECT ST_AsText(%(transform_s)sST_Reverse(%(geometry)s)%(transform_e)s) FROM %(edge_table)s
+                        SELECT ST_AsText(%(transform_s)sST_Reverse(%(geometry)s)%(transform_e)s) FROM %(edge_schema)s.%(edge_table)s
                             WHERE %(target)s = %(result_node_id)d AND %(id)s = %(result_edge_id)d;
                     """ % args
                     ##Utils.logMessage(query2)

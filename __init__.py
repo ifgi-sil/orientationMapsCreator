@@ -4,11 +4,13 @@
  orientationMapsCreator
                                  A QGIS plugin
  Tool to create orientation maps.
-                             -------------------
+ 
+ based on "pgRouting Layer" plugin. Copyright 2011 by Anita Graser 
+                              -------------------
         begin                : 2018-03-28
+        git sha              : $Format:%H$
         copyright            : (C) 2018 by Heinrich Löwen
         email                : loewen.heinrich@uni-muenster.de
-        git sha              : $Format:%H$
  ***************************************************************************/
 
 /***************************************************************************

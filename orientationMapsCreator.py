@@ -1,27 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-/***************************************************************************
- orientationMapsCreator
-                                 A QGIS plugin
- Tool to create orientation maps.
- 
- based on "pgRouting Layer" plugin. Copyright 2011 by Anita Graser 
-                              -------------------
-        begin                : 2018-03-28
-        git sha              : $Format:%H$
-        copyright            : (C) 2018 by Heinrich Löwen
-        email                : loewen.heinrich@uni-muenster.de
- ***************************************************************************/
 
-/***************************************************************************
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- ***************************************************************************/
-"""
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from qgis.core import *
@@ -31,9 +9,13 @@ import orientationMapsCreator_utils as Utils
 import dbConnection
 import os
 import psycopg2     #DatabaseError
+import re           #RegularExpressions
+import glob
+
 
 # Initialize Qt resources from file resources.py
 import resources
+from qgis._core import QgsVectorLayer
 
 conn = dbConnection.ConnectionManager()
 
@@ -86,6 +68,7 @@ class orientationMapsCreator:
         self.targetIdRubberBand.setColor(Qt.yellow)
         self.targetIdRubberBand.setWidth(4)
         
+        #Items drawn on the canvas without saving to a layer
         self.canvasItemList = {}
         self.canvasItemList['markers'] = []
         self.canvasItemList['annotations'] = []
@@ -100,6 +83,9 @@ class orientationMapsCreator:
         if not Utils.isQGISv1():
             resultAreaRubberBand.setBrushStyle(Qt.Dense4Pattern)
         self.canvasItemList['area'] = resultAreaRubberBand
+        
+        #Layers added to the project
+        self.projectLayerList = {}        
         
 
         # initialize plugin directory
@@ -242,14 +228,11 @@ class orientationMapsCreator:
         QObject.connect(self.dockwidget.btnDatabaseRefresh, SIGNAL("clicked()"), self.reloadConnections)
         
         QObject.connect(self.dockwidget.comboBoxDatabase, SIGNAL("currentIndexChanged(const QString&)"), self.updateDatabaseConnectionEnabled)
-#         QObject.connect(self.dockwidget.comboBoxEdgesSchema, SIGNAL("currentIndexChanged(const QString&)"), lambda: self.updateSchemaConnectionEnabled('comboBoxEdgesSchema'))
-        #With the lambda it would be the generic form, but then the exec will not work any more in this function (in python 2.7)
-        QObject.connect(self.dockwidget.comboBoxEdgesSchema, SIGNAL("currentIndexChanged(const QString&)"), self.updateEdgesSchemaConnectionEnabled)
-        QObject.connect(self.dockwidget.comboBoxOSMSchema, SIGNAL("currentIndexChanged(const QString&)"), self.updateOSMSchemaConnectionEnabled)
-        QObject.connect(self.dockwidget.comboBoxOpenNRWSchema, SIGNAL("currentIndexChanged(const QString&)"), self.updateOpenNRWSchemaConnectionEnabled)
         
-        QObject.connect(self.dockwidget.btnPreviewRoute, SIGNAL("clicked()"), self.calculateRoute)
+        QObject.connect(self.dockwidget.btnPreviewRoute, SIGNAL("clicked()"), self.previewRoute)
         QObject.connect(self.dockwidget.btnClearPreview, SIGNAL("clicked()"), self.clear)
+        QObject.connect(self.dockwidget.btnSaveRoute, SIGNAL("clicked()"), self.saveRoute)
+        QObject.connect(self.dockwidget.btnRemoveRoute, SIGNAL("clicked()"), self.removeRoute)
          
         self.functions = {}     #Route Calculation Functions: here only dijkstra
         for funcfname in self.SUPPORTED_FUNCTIONS:
@@ -377,29 +360,15 @@ class orientationMapsCreator:
 # 
 #         self.loadFunctionsForVersion()
 #         self.updateFunctionEnabled(currentFunction)
-        
-    def updateEdgesSchemaConnectionEnabled(self):
-        """Show available Database Schemas for the selected Database"""
 
-        print "** updateEdgesSchemaConnectionEnabled"
-        #TODO
-        
-    def updateOSMSchemaConnectionEnabled(self):
-        """Show available Database Schemas for the selected Database"""
-
-        print "** updateOSMSchemaConnectionEnabled"
-        #TODO
-        
-    def updateOpenNRWSchemaConnectionEnabled(self):
-        """Show available Database Schemas for the selected Database"""
-
-        print "** updateOpenNRWSchemaConnectionEnabled"
-        #TODO
     
-    def calculateRoute(self):
-        """Calculate Route from specified source to target using default postgis dijkstra function."""
+    def previewRoute(self):
+        """Calculate Route from specified source to target using default postgis dijkstra function.
+        
+        Previews Route.
+        """
 
-        print "** calculateRoute"
+        print "** previewRoute"
         
         #function = self.functions[str(self.dockwidget.comboBoxFunction.currentText())]
         function = self.functions['dijkstra']
@@ -429,7 +398,8 @@ class orientationMapsCreator:
                   'versions are different')
 
             srid, geomType = Utils.getSridAndGeomType(con, args)
-            function.prepare(self.canvasItemList)
+            
+            function.prepare(self.canvasItemList)       #clears previous route
             query = function.getQuery(args)
             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Geometry Query:' + query)
            
@@ -461,18 +431,195 @@ class orientationMapsCreator:
                 try:
                     db.con.close()
                 except:
-                    QMessageBox.critical(self.dock, self.dockwidget.windowTitle(),
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
                         'server closed the connection unexpectedly')
         
-    def executeTestFuntion2(self):
-        """Run test function 2"""
+    
+    def saveRoute(self):
+        """Calculate Route from specified source to target using default postgis dijkstra function.
+        
+        Saves Route to layer.
+        """
+        
+        print "** saveRoute"
+        
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        
+        empties = []
+        for key in args.keys():
+            if not args[key]:
+                empties.append(key)
+        
+        if len(empties) > 0:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                'Following argument is not specified.\n' + ','.join(empties))
+            return
+        
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+            
+            version = Utils.getPgrVersion(con)
+            args['version'] = version
+            if (self.version!=version) :
+                QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                  'versions are different')
 
-        print "** executeTestFunction2"
-        #TODO
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            layerName = self.getLayerName(args)
+            args['tmp_table'] = layerName
+            
+            
+            #Drop table if exists
+            dropquery = """
+                DROP TABLE IF EXISTS tmp.%(tmp_table)s
+                """ % args
+            cur.execute(self.cleanQuery(dropquery))
+            con.commit()
+            
+            #Save route to new tmp table
+            tmpquery = function.getSaveExportQuery(args)
+            #QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Geometry Query:\n' + tmpquery)
+            Utils.logMessage('Export:\n' + tmpquery)
+            
+            cur.execute(self.cleanQuery(tmpquery))
+            con.commit()
+            
+            query = """
+                SELECT * FROM tmp.%(tmp_table)s
+                """ % args
+            query = self.cleanQuery(query)
+            
+            #QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Geometry Query:\n' + query)
+            Utils.logMessage('Export:\n' + query)
+            
+            uri = db.getURI()
+            uri.setDataSource("", "(" + query + ")", "path_geom", "", "seq")
+            
+            tmpDir = self.getTempDir(layerName)
+
+            # Create VectorLayer > source is SQL Query, so it'll always have to queried again on reload
+#             qvl = QgsVectorLayer(uri.uri(), layerName, db.getProviderName())            
+            # Write to tmp shapefile and load to layer for better view performance is qgis
+#             QgsVectorFileWriter.writeAsVectorFormat(qvl, tmpDir , "utf-8", None, "ESRI Shapefile")
+#             vl = self.iface.addVectorLayer(tmpDir, layerName, "ogr")
+            
+            
+            # Write to tmp PSQL table for better performance
+            vl = self.iface.addVectorLayer(uri.uri(), layerName, db.getProviderName())
+            if not vl:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+            
+            # Save layers
+            self.projectLayerList['route_psql'] = vl
+            self.projectLayerList['tmp_route'] = args['tmp_table']
+            #self.projectLayerList['route_shapefile'] = vl      
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')
+                    
+    def removeRoute(self):
+        """Remove Route from layers and file system.
+
+        """
+        
+        print "** removeRoute"
+        
+        # Remove layer from QGIS
+        if 'route_psql' in self.projectLayerList:
+            layer = self.projectLayerList['route_psql']
+            source = layer.dataProvider().dataSourceUri()
+            QgsMapLayerRegistry.instance().removeMapLayer(layer)
+            del self.projectLayerList['route_psql']
+        else:
+            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route layer to be removed.')
+
+        # Remove Shapefile from disc            
+        if 'route_shapefile' in self.projectLayerList:
+            del self.projectLayerList['route_shapefile']
+                 
+            for file in glob.glob(source.split('.')[0]+"*"):
+                os.remove(file)
+        #else:
+            #QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route shapefile to be removed.')
+                
+        # Remove tmp database table
+        if 'tmp_route' in self.projectLayerList:
+            db = None
+            try:
+                dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+                db = self.connectionsDB[dbname].connect()
+                con = db.con
+                cur = con.cursor()
+                    
+                #Drop table if exists
+                dropquery = """
+                    DROP TABLE IF EXISTS tmp.%(tmp_route)s
+                    """ % self.projectLayerList
+                cur.execute(self.cleanQuery(dropquery))
+                con.commit()
+            
+            except psycopg2.DatabaseError, e:
+                print "** Database Error"
+                QApplication.restoreOverrideCursor()
+                QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+            finally:
+                del self.projectLayerList['tmp_route']
+                QApplication.restoreOverrideCursor()
+                if db and db.con:
+                    try:
+                        db.con.close()
+                    except:
+                        QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                            'server closed the connection unexpectedly')
+        else: 
+            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route table to be removed.')
+            
+
+    def cleanQuery(self, msgQuery):
+        query = msgQuery.replace('\n', ' ')
+        query = re.sub(r'\s+', ' ', query)
+        query = query.replace('( ', '(')
+        query = query.replace(' )', ')')
+        query = query.strip()
+        return query
     
     def getArguments(self, controls):
         args = {}       #'dict'
-        args['edge_schema'] = str(self.dockwidget.comboBoxEdgesSchema.currentText())
+        
+        if 'lineEditIDColumn' in controls:
+            text = self.dockwidget.lineEditEdgesSchema.text()
+            if not text:
+                args['edge_schema'] = 'public'
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Schema empty: set to public.')
+            else:
+                args['edge_schema'] = text
+        else: 
+            args['edge_schema'] = 'public'
+            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Schema set to public.')
+            
         args['edge_table'] = self.dockwidget.lineEditEdgesTable.text()
         args['geometry'] = self.dockwidget.lineEditGeometryColumn.text()
         if 'lineEditIDColumn' in controls:
@@ -589,11 +736,14 @@ class orientationMapsCreator:
             self.dockwidget.comboBoxDatabase.setCurrentIndex(0)
         self.reloadMessage = oldReloadMessage
         
-        self.dockwidget.comboBoxEdgesSchema.clear()
-        self.dockwidget.comboBoxEdgesSchema.addItem('nrw_2po')
-        self.dockwidget.lineEditEdgesTable.setText('nrw_2po_4pgr')
-        self.dockwidget.lineEditVerticesTable.setText('nrw_2po_4pgr_vertices_pgr')
-        self.dockwidget.lineEditGeometryColumn.setText('geom')
+        if 'lineEditEdgesSchema' in controls:
+            self.dockwidget.lineEditEdgesSchema.setText('nrw_2po')
+        if 'lineEditEdgesTable' in controls:
+            self.dockwidget.lineEditEdgesTable.setText('nrw_2po_4pgr')
+        if 'lineEditVerticesTable' in controls:
+            self.dockwidget.lineEditVerticesTable.setText('nrw_2po_4pgr_vertices_pgr')
+        if 'lineEditGeometryColumn' in controls:
+            self.dockwidget.lineEditGeometryColumn.setText('geom')
         if 'lineEditIDColumn' in controls:
             self.dockwidget.lineEditIDColumn.setText('id')
  
@@ -627,36 +777,22 @@ class orientationMapsCreator:
     def getLayerName(self, args, letter=''):
         function = self.functions['dijkstra']
 
-        layerName = "(" + letter 
-
-        if 'directed' in args and args['directed'] == 'true':
-            layerName +=  "D) "
-        else:
-            layerName +=  "U) "
-
-        layerName += function.getName() + ": "
-
+        layerName = function.getName()
 
         if 'source_id' in args:
             layerName +=  args['source_id']
-        elif 'ids' in args:
-            layerName += "{" + args['ids'] + "}"
-        else:
-            layerName +=  "[" + args['source_ids'] + "]"
 
-        if 'ids' in args:
-            layerName += " "
-        elif 'distance' in args:
-            layerName += " dd = " + args['distance']
-        else:
-            layerName += " to "
-            if 'target_id' in args:
-                layerName += args['target_id']
-            else:
-                layerName += "[" + args['target_ids'] + "]"
+        layerName += "to"
+        if 'target_id' in args:
+            layerName += args['target_id']
 
         return layerName 
     
+    def getTempDir(self, layerName):
+        
+        return "/tmp/" + layerName + ".shp"
+        
+            
     def clear(self):
         #self.dock.lineEditIds.setText("")
         for marker in self.idsVertexMarkers:
@@ -709,6 +845,7 @@ class orientationMapsCreator:
         if idx >= 0:
             self.dockwidget.comboBoxDatabase.setCurrentIndex(idx)
         
+        self.dockwidget.lineEditEdgesSchema.setText(Utils.getStringValue(settings, '/orientationMapsCreator/edge_schema', 'nrw_2po'))
         self.dockwidget.lineEditEdgesTable.setText(Utils.getStringValue(settings, '/orientationMapsCreator/sql/edge_table', 'nrw_2po_4pgr'))
         self.dockwidget.lineEditVerticesTable.setText(Utils.getStringValue(settings, '/orientationMapsCreator/sql/vertices_table', 'nrw_2po_4pgr_vertices_pgr'))
         self.dockwidget.lineEditGeometryColumn.setText(Utils.getStringValue(settings, '/orientationMapsCreator/sql/geometry', 'geom'))
@@ -728,6 +865,7 @@ class orientationMapsCreator:
     def saveSettings(self):
         settings = QSettings()
         settings.setValue('/orientationMapsCreator/Database', self.dockwidget.comboBoxDatabase.currentText())
+        settings.setValue('/orientationMapsCreator/edge_schema', self.dockwidget.lineEditEdgesSchema.text())
         
         settings.setValue('/orientationMapsCreator/sql/edge_table', self.dockwidget.lineEditEdgesTable.text())
         settings.setValue('/orientationMapsCreator/sql/vertices_table', self.dockwidget.lineEditVerticesTable.text())

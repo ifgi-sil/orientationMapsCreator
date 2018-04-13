@@ -72,6 +72,10 @@ class Function(FunctionBase):
 
     def getExportQuery(self, args):
         return self.getJoinResultWithEdgeTable(args)
+    
+    def getSaveExportQuery(self, args):
+        return self.getSaveJoinResultWithEdgeTable(args)
+        
 
 
     def getExportMergeQuery(self, args):
