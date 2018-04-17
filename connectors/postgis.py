@@ -173,8 +173,8 @@ class Connection(DbConn.Connection):
 		if self.user:    con_str += "user='%s' "     % self.user
 		if self.passwd:  con_str += "password='%s' " % self.passwd
 		return con_str
-
-        def get_dbname(self):
+	
+	def get_dbname(self):
 		c = self.con.cursor()
 		self._exec_sql(c, "SELECT current_database()")
 		return c.fetchone()[0]

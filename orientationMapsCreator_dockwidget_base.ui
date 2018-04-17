@@ -48,7 +48,7 @@
        <property name="geometry">
         <rect>
          <x>0</x>
-         <y>-265</y>
+         <y>0</y>
          <width>414</width>
          <height>1242</height>
         </rect>
@@ -133,8 +133,35 @@
                 </property>
                </widget>
               </item>
+              <item row="2" column="1">
+               <widget class="QComboBox" name="comboBoxVerticesTable">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
+              </item>
               <item row="1" column="1">
-               <widget class="QLineEdit" name="lineEditEdgesTable"/>
+               <widget class="QComboBox" name="comboBoxEdgesTable">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QComboBox" name="comboBoxEdgesSchema">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
               </item>
               <item row="2" column="0">
                <widget class="QLabel" name="lblVerticesTable">
@@ -143,18 +170,12 @@
                 </property>
                </widget>
               </item>
-              <item row="2" column="1">
-               <widget class="QLineEdit" name="lineEditVerticesTable"/>
-              </item>
               <item row="0" column="0">
                <widget class="QLabel" name="lblEdgesSchema">
                 <property name="text">
                  <string>Schema</string>
                 </property>
                </widget>
-              </item>
-              <item row="0" column="1">
-               <widget class="QLineEdit" name="lineEditEdgesSchema"/>
               </item>
              </layout>
             </widget>
@@ -494,8 +515,6 @@
   <tabstop>btnLoadDefaults</tabstop>
   <tabstop>comboBoxDatabase</tabstop>
   <tabstop>btnDatabaseRefresh</tabstop>
-  <tabstop>lineEditEdgesTable</tabstop>
-  <tabstop>lineEditVerticesTable</tabstop>
   <tabstop>lineEditGeometryColumn</tabstop>
   <tabstop>lineEditIDColumn</tabstop>
   <tabstop>lineEditSourceColumn</tabstop>

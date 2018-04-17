@@ -11,7 +11,9 @@ class FunctionBase(object):
     exportMergeButton = False
     exportEdgeBase = False
     commonControls = [
-        'lblEdgesSchema',       'lineEditEdgesSchema',
+        'lblEdgesSchema',       'comboBoxEdgesSchema',
+        'lblEdgesTable',        'comboBoxEdgesTable',
+        'lblVerticesTable',     'comboBoxVerticesTable',
         'lblGeometryColumn',    'lineEditGeometryColumn',
         'lblIDColumn',          'lineEditIDColumn',
         'lblSourceColumn',      'lineEditSourceColumn',

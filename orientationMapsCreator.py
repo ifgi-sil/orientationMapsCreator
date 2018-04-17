@@ -85,8 +85,12 @@ class orientationMapsCreator:
         self.canvasItemList['area'] = resultAreaRubberBand
         
         #Layers added to the project
-        self.projectLayerList = {}        
+        self.projectLayerList = {}  
         
+        #DB-Schema List
+        self.dbSchemaSettings = {}
+        self.dbEdgesTableSettings = {}
+        self.dbVerticesTableSettings = {}
 
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
@@ -228,9 +232,12 @@ class orientationMapsCreator:
         QObject.connect(self.dockwidget.btnDatabaseRefresh, SIGNAL("clicked()"), self.reloadConnections)
         
         QObject.connect(self.dockwidget.comboBoxDatabase, SIGNAL("currentIndexChanged(const QString&)"), self.updateDatabaseConnectionEnabled)
+        QObject.connect(self.dockwidget.comboBoxEdgesSchema, SIGNAL("currentIndexChanged(const QString&)"), self.updateEdgesSchemaIndexChanged)
+        QObject.connect(self.dockwidget.comboBoxEdgesTable, SIGNAL("currentIndexChanged(const QString&)"), self.updateEdgesTableIndexChanged)
+        QObject.connect(self.dockwidget.comboBoxVerticesTable, SIGNAL("currentIndexChanged(const QString&)"), self.updateVerticesTableIndexChanged)
         
         QObject.connect(self.dockwidget.btnPreviewRoute, SIGNAL("clicked()"), self.previewRoute)
-        QObject.connect(self.dockwidget.btnClearPreview, SIGNAL("clicked()"), self.clear)
+        QObject.connect(self.dockwidget.btnClearPreview, SIGNAL("clicked()"), self.clearPreview)
         QObject.connect(self.dockwidget.btnSaveRoute, SIGNAL("clicked()"), self.saveRoute)
         QObject.connect(self.dockwidget.btnRemoveRoute, SIGNAL("clicked()"), self.removeRoute)
          
@@ -273,7 +280,7 @@ class orientationMapsCreator:
 
         print "** UNLOAD orientationMapsCreator"
 
-        self.clear()
+        self.clearPreview()
         self.saveSettings()
         for action in self.actions:
             self.iface.removePluginMenu(
@@ -298,7 +305,7 @@ class orientationMapsCreator:
     def reloadConnections(self):
         """Reload connection to Database"""
         
-        print "** reloadConnections"
+        #print "** reloadConnections"
 
         oldReloadMessage = self.reloadMessage
         self.reloadMessage = False
@@ -335,13 +342,13 @@ class orientationMapsCreator:
             self.dockwidget.comboBoxDatabase.setCurrentIndex(0)
 
         self.reloadMessage = oldReloadMessage
-        self.updateDatabaseConnectionEnabled()
+        #self.updateDatabaseConnectionEnabled()
         
         
     def updateDatabaseConnectionEnabled(self):
         """Connect to selected Database"""
 
-        print "** updateDatabaseConnectionEnabled"
+        #print "** updateDatabaseConnectionEnabled"
         
         dbname = str(self.dockwidget.comboBoxDatabase.currentText())
         if dbname =='':
@@ -350,17 +357,128 @@ class orientationMapsCreator:
         db = self.connectionsDB[dbname].connect()
         con = db.con
         self.version = Utils.getPgrVersion(con)     #save overall version of selected database connection
-        if self.reloadMessage:
-            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 
-                                    'Selected database: ' + dbname + '\npgRouting version: ' + str(self.version))
+#         if self.reloadMessage:
+#             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 
+#                                     'Selected database: ' + dbname + '\npgRouting version: ' + str(self.version))
+            
+        self.reloadDatabaseConnectionSchemas()
 
-#         currentFunction = self.dockwidget.comboBoxFunction.currentText()
-#         if currentFunction =='':
-#             return
-# 
-#         self.loadFunctionsForVersion()
-#         self.updateFunctionEnabled(currentFunction)
 
+    def reloadDatabaseConnectionSchemas(self):
+        """Reload Schemas of connected Database"""
+
+        #print "** reloadDatabaseConnectionSchemas"
+        
+        dbname = str(self.dockwidget.comboBoxDatabase.currentText())
+        if dbname =='':
+            return
+        
+        curSchema = ''
+        if dbname in self.dbSchemaSettings:
+            curSchema = self.dbSchemaSettings[dbname]
+
+        self.dockwidget.comboBoxEdgesSchema.clear()
+    
+        try:
+            db = self.connectionsDB[dbname].connect()
+            con = db.con           
+            for schema in db.list_schemas():
+                self.dockwidget.comboBoxEdgesSchema.addItem(schema[1])
+                #print "** schema = ", schema[1]
+                
+        except dbConnection.DbError, e:
+            Utils.logMessage("dbname:" + dbname + ", " + e.msg)
+
+        finally:
+            if db and db.con:
+                db.con.close()
+                
+        #restore previously selected schema if exists
+        idx = self.dockwidget.comboBoxEdgesSchema.findText(curSchema)
+        if idx >= 0:
+            self.dockwidget.comboBoxEdgesSchema.setCurrentIndex(idx) #reset to previous selection
+        else:
+            self.dockwidget.comboBoxEdgesSchema.setCurrentIndex(0)
+            
+        self.dbSchemaSettings[dbname] = str(self.dockwidget.comboBoxEdgesSchema.currentText())
+
+        self.updateEdgesSchemaIndexChanged()
+
+    
+    def updateEdgesSchemaIndexChanged(self):
+        """Reload Tables of connected Schema"""
+
+        #print "** updateEdgesSchemaIndexChanged"
+        
+        dbname = str(self.dockwidget.comboBoxDatabase.currentText())
+        if dbname =='':
+            return
+        
+        schema = str(self.dockwidget.comboBoxEdgesSchema.currentText())
+        self.dbSchemaSettings[dbname] = schema
+        
+        curEdgesTable = ''
+        if dbname+'.'+schema in self.dbEdgesTableSettings:
+            curEdgesTable = self.dbEdgesTableSettings[dbname+'.'+schema]
+            
+        curVerticesTable = ''
+        if dbname+'.'+schema in self.dbVerticesTableSettings:
+            curVerticesTable = self.dbVerticesTableSettings[dbname+'.'+schema]
+        
+        self.dockwidget.comboBoxEdgesTable.clear()
+        self.dockwidget.comboBoxVerticesTable.clear()
+        
+        try:
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            for table in db.list_geotables(schema):
+                self.dockwidget.comboBoxEdgesTable.addItem(table[0])
+                self.dockwidget.comboBoxVerticesTable.addItem(table[0])
+                #print "** edgesVerticesTable = ", table[0]
+                
+        except dbConnection.DbError, e:
+            Utils.logMessage("dbname:" + dbname + ", " + e.msg)
+
+        finally:
+            if db and db.con:
+                db.con.close()
+                
+        #restore previously selected edges table if exists
+        idx = self.dockwidget.comboBoxEdgesTable.findText(curEdgesTable)
+        if idx >= 0:
+            self.dockwidget.comboBoxEdgesTable.setCurrentIndex(idx) #reset to previous selection
+        else:
+            self.dockwidget.comboBoxEdgesTable.setCurrentIndex(0)   
+        self.dbEdgesTableSettings[dbname+'.'+schema] = str(self.dockwidget.comboBoxEdgesTable.currentText())
+        
+        #restore previously selected edges table if exists
+        idx = self.dockwidget.comboBoxVerticesTable.findText(curVerticesTable)
+        if idx >= 0:
+            self.dockwidget.comboBoxVerticesTable.setCurrentIndex(idx) #reset to previous selection
+        else:
+            self.dockwidget.comboBoxVerticesTable.setCurrentIndex(0)    
+        self.dbVerticesTableSettings[dbname+'.'+schema] = str(self.dockwidget.comboBoxVerticesTable.currentText())
+
+
+    def updateEdgesTableIndexChanged(self):
+ 
+        #print "** updateEdgesTableIndexChanged"
+        
+        dbname = str(self.dockwidget.comboBoxDatabase.currentText())        
+        schema = str(self.dockwidget.comboBoxEdgesSchema.currentText())
+        table = str(self.dockwidget.comboBoxEdgesTable.currentText())
+        self.dbEdgesTableSettings[dbname+'.'+schema] = table
+ 
+         
+    def updateVerticesTableIndexChanged(self):
+ 
+        #print "** updateVerticesTableIndexChanged"
+        
+        dbname = str(self.dockwidget.comboBoxDatabase.currentText())        
+        schema = str(self.dockwidget.comboBoxEdgesSchema.currentText())
+        table = str(self.dockwidget.comboBoxVerticesTable.currentText())
+        self.dbVerticesTableSettings[dbname+'.'+schema] = table
+        
     
     def previewRoute(self):
         """Calculate Route from specified source to target using default postgis dijkstra function.
@@ -443,6 +561,9 @@ class orientationMapsCreator:
         
         print "** saveRoute"
         
+        #Clear previous route
+        self.removeRoute()
+        
         function = self.functions['dijkstra']
         args = self.getArguments(function.getControlNames(self.version))
         
@@ -474,43 +595,28 @@ class orientationMapsCreator:
             layerName = self.getLayerName(args)
             args['tmp_table'] = layerName
             
-            
             #Drop table if exists
-            dropquery = """
-                DROP TABLE IF EXISTS tmp.%(tmp_table)s
-                """ % args
-            cur.execute(self.cleanQuery(dropquery))
-            con.commit()
+            if True in [layerName in t for t in db.list_geotables('tmp')]:
+                db.delete_table(layerName, 'tmp')
             
             #Save route to new tmp table
             tmpquery = function.getSaveExportQuery(args)
             #QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Geometry Query:\n' + tmpquery)
             Utils.logMessage('Export:\n' + tmpquery)
-            
             cur.execute(self.cleanQuery(tmpquery))
             con.commit()
             
+            #Query new tmp table
             query = """
                 SELECT * FROM tmp.%(tmp_table)s
                 """ % args
             query = self.cleanQuery(query)
-            
             #QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Geometry Query:\n' + query)
-            Utils.logMessage('Export:\n' + query)
+            Utils.logMessage('Export:\n' + query)         
             
+            # Save to vector layer
             uri = db.getURI()
             uri.setDataSource("", "(" + query + ")", "path_geom", "", "seq")
-            
-            tmpDir = self.getTempDir(layerName)
-
-            # Create VectorLayer > source is SQL Query, so it'll always have to queried again on reload
-#             qvl = QgsVectorLayer(uri.uri(), layerName, db.getProviderName())            
-            # Write to tmp shapefile and load to layer for better view performance is qgis
-#             QgsVectorFileWriter.writeAsVectorFormat(qvl, tmpDir , "utf-8", None, "ESRI Shapefile")
-#             vl = self.iface.addVectorLayer(tmpDir, layerName, "ogr")
-            
-            
-            # Write to tmp PSQL table for better performance
             vl = self.iface.addVectorLayer(uri.uri(), layerName, db.getProviderName())
             if not vl:
                 QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
@@ -518,7 +624,14 @@ class orientationMapsCreator:
             # Save layers
             self.projectLayerList['route_psql'] = vl
             self.projectLayerList['tmp_route'] = args['tmp_table']
-            #self.projectLayerList['route_shapefile'] = vl      
+            
+#             # Create VectorLayer > source is SQL Query, so it'll always have to queried again on reload
+#             tmpDir = self.getTempDir(layerName)
+#             qvl = QgsVectorLayer(uri.uri(), layerName, db.getProviderName())            
+#             # Write to tmp shapefile and load to layer for better view performance is qgis
+#             QgsVectorFileWriter.writeAsVectorFormat(qvl, tmpDir , "utf-8", None, "ESRI Shapefile")
+#             vl = self.iface.addVectorLayer(tmpDir, layerName, "ogr")
+#             self.projectLayerList['route_shapefile'] = vl      
             
         except psycopg2.DatabaseError, e:
             print "** Database Error"
@@ -552,8 +665,8 @@ class orientationMapsCreator:
             source = layer.dataProvider().dataSourceUri()
             QgsMapLayerRegistry.instance().removeMapLayer(layer)
             del self.projectLayerList['route_psql']
-        else:
-            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route layer to be removed.')
+#         else:
+#             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route layer to be removed.')
 
         # Remove Shapefile from disc            
         if 'route_shapefile' in self.projectLayerList:
@@ -561,8 +674,8 @@ class orientationMapsCreator:
                  
             for file in glob.glob(source.split('.')[0]+"*"):
                 os.remove(file)
-        #else:
-            #QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route shapefile to be removed.')
+#         else:
+#             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route shapefile to be removed.')
                 
         # Remove tmp database table
         if 'tmp_route' in self.projectLayerList:
@@ -571,15 +684,10 @@ class orientationMapsCreator:
                 dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
                 db = self.connectionsDB[dbname].connect()
                 con = db.con
-                cur = con.cursor()
                     
                 #Drop table if exists
-                dropquery = """
-                    DROP TABLE IF EXISTS tmp.%(tmp_route)s
-                    """ % self.projectLayerList
-                cur.execute(self.cleanQuery(dropquery))
-                con.commit()
-            
+                if True in [self.projectLayerList['tmp_route'] in t for t in db.list_geotables('tmp')]:
+                    db.delete_table(self.projectLayerList['tmp_route'], 'tmp')            
             except psycopg2.DatabaseError, e:
                 print "** Database Error"
                 QApplication.restoreOverrideCursor()
@@ -594,8 +702,8 @@ class orientationMapsCreator:
                     except:
                         QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
                             'server closed the connection unexpectedly')
-        else: 
-            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route table to be removed.')
+#         else: 
+#             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route table to be removed.')
             
 
     def cleanQuery(self, msgQuery):
@@ -609,19 +717,12 @@ class orientationMapsCreator:
     def getArguments(self, controls):
         args = {}       #'dict'
         
-        if 'lineEditIDColumn' in controls:
-            text = self.dockwidget.lineEditEdgesSchema.text()
-            if not text:
-                args['edge_schema'] = 'public'
-                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Schema empty: set to public.')
-            else:
-                args['edge_schema'] = text
-        else: 
-            args['edge_schema'] = 'public'
-            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Schema set to public.')
-            
-        args['edge_table'] = self.dockwidget.lineEditEdgesTable.text()
-        args['geometry'] = self.dockwidget.lineEditGeometryColumn.text()
+        if 'comboBoxEdgesSchema' in controls:
+            args['edge_schema'] = self.dockwidget.comboBoxEdgesSchema.currentText()
+        if 'comboBoxEdgesTable' in controls:
+            args['edge_table'] = self.dockwidget.comboBoxEdgesTable.currentText()
+        if 'lineEditGeometryColumn' in controls:
+            args['geometry'] = self.dockwidget.lineEditGeometryColumn.text()
         if 'lineEditIDColumn' in controls:
             args['id'] = self.dockwidget.lineEditIDColumn.text()
 
@@ -665,83 +766,43 @@ class orientationMapsCreator:
                 args['reverse_cost'] = ', ' + args['reverse_cost'] + '::float8 AS reverse_cost'
             
         return args        
-
-#         if 'lineEditX1' in controls:
-#             args['x1'] = self.dockwidget.lineEditX1.text()
-#         
-#         if 'lineEditY1' in controls:
-#             args['y1'] = self.dockwidget.lineEditY1.text()
-#         
-#         if 'lineEditX2' in controls:
-#             args['x2'] = self.dockwidget.lineEditX2.text()
-#         
-#         if 'lineEditY2' in controls:
-#             args['y2'] = self.dockwidget.lineEditY2.text()
-#         
-#         if 'lineEditRule' in controls:
-#             args['rule'] = self.dockwidget.lineEditRule.text()
-#         
-#         if 'lineEditToCost' in controls:
-#             args['to_cost'] = self.dockwidget.lineEditToCost.text()
-#         
-#         if 'lineEditIds' in controls:
-#             args['ids'] = self.dockwidget.lineEditIds.text()
-# 
-#         if 'lineEditPcts' in controls:
-#             args['pcts'] = self.dockwidget.lineEditPcts.text()
-
-#         if 'lineEditSourcePos' in controls:
-#             args['source_pos'] = self.dockwidget.lineEditSourcePos.text()
-#         
-#         if 'lineEditSourceIds' in controls:
-#             args['source_ids'] = self.dockwidget.lineEditSourceIds.text()
-
-#         if 'lineEditTargetPos' in controls:
-#             args['target_pos'] = self.dockwidget.lineEditTargetPos.text()
-#         
-#         if 'lineEditTargetIds' in controls:
-#             args['target_ids'] = self.dockwidget.lineEditTargetIds.text()
-#         
-#         if 'lineEditDistance' in controls:
-#             args['distance'] = self.dockwidget.lineEditDistance.text()
-#         
-#         if 'lineEditAlpha' in controls:
-#             args['alpha'] = self.dockwidget.lineEditAlpha.text()
-#         
-#         if 'lineEditPaths' in controls:
-#             args['paths'] = self.dockwidget.lineEditPaths.text()
-
-#         if 'checkBoxHeapPaths' in controls:
-#             args['heap_paths'] = str(self.dockwidget.checkBoxHeapPaths.isChecked()).lower()
-
-#         if 'checkBoxHasReverseCost' in controls:
-#             args['has_reverse_cost'] = str(self.dockwidget.checkBoxHasReverseCost.isChecked()).lower()
-#             if args['has_reverse_cost'] == 'false':
-#                 args['reverse_cost'] = ' '
-#             else:
-#                 args['reverse_cost'] = ', ' + args['reverse_cost'] + '::float8 AS reverse_cost'
-#         
-#         if 'plainTextEditTurnRestrictSql' in controls:
-#             args['turn_restrict_sql'] = self.dockwidget.plainTextEditTurnRestrictSql.toPlainText()
+    
     
     def setDefaultArguments(self, controls):
         """Loads default arguments and fills the widget boxes with the lables"""
         
         oldReloadMessage = self.reloadMessage
         self.reloadMessage = False
+        
+        #comboBoxDatabase
         idx = self.dockwidget.comboBoxDatabase.findText('postgres')
         if idx >= 0:
             self.dockwidget.comboBoxDatabase.setCurrentIndex(idx) #reset to previous selection
         else:
             self.dockwidget.comboBoxDatabase.setCurrentIndex(0)
         self.reloadMessage = oldReloadMessage
-        
-        if 'lineEditEdgesSchema' in controls:
-            self.dockwidget.lineEditEdgesSchema.setText('nrw_2po')
-        if 'lineEditEdgesTable' in controls:
-            self.dockwidget.lineEditEdgesTable.setText('nrw_2po_4pgr')
-        if 'lineEditVerticesTable' in controls:
-            self.dockwidget.lineEditVerticesTable.setText('nrw_2po_4pgr_vertices_pgr')
+
+        #comboBoxEdgesSchema
+        idx = self.dockwidget.comboBoxEdgesSchema.findText('nrw_2po')
+        if idx >= 0:
+            self.dockwidget.comboBoxEdgesSchema.setCurrentIndex(idx) #reset to previous selection
+        else:
+            self.dockwidget.comboBoxEdgesSchema.setCurrentIndex(0)
+            
+        #comboBoxEdgesTable
+        idx = self.dockwidget.comboBoxEdgesTable.findText('nrw_2po_4pgr')
+        if idx >= 0:
+            self.dockwidget.comboBoxEdgesTable.setCurrentIndex(idx) #reset to previous selection
+        else:
+            self.dockwidget.comboBoxEdgesTable.setCurrentIndex(0)
+            
+        #comboBoxVerticesTable
+        idx = self.dockwidget.comboBoxVerticesTable.findText('nrw_2po_4pgr_vertices_pgr')
+        if idx >= 0:
+            self.dockwidget.comboBoxVerticesTable.setCurrentIndex(idx) #reset to previous selection
+        else:
+            self.dockwidget.comboBoxVerticesTable.setCurrentIndex(0)
+
         if 'lineEditGeometryColumn' in controls:
             self.dockwidget.lineEditGeometryColumn.setText('geom')
         if 'lineEditIDColumn' in controls:
@@ -793,7 +854,9 @@ class orientationMapsCreator:
         return "/tmp/" + layerName + ".shp"
         
             
-    def clear(self):
+    def clearPreview(self):
+        
+        print "** clearPreview"
         #self.dock.lineEditIds.setText("")
         for marker in self.idsVertexMarkers:
             marker.setVisible(False)
@@ -840,14 +903,26 @@ class orientationMapsCreator:
 
 
     def loadSettings(self):
+        
+        print "** loadSettings"
+        
         settings = QSettings()
         idx = self.dockwidget.comboBoxDatabase.findText(Utils.getStringValue(settings, '/orientationMapsCreator/Database', ''))
         if idx >= 0:
             self.dockwidget.comboBoxDatabase.setCurrentIndex(idx)
         
-        self.dockwidget.lineEditEdgesSchema.setText(Utils.getStringValue(settings, '/orientationMapsCreator/edge_schema', 'nrw_2po'))
-        self.dockwidget.lineEditEdgesTable.setText(Utils.getStringValue(settings, '/orientationMapsCreator/sql/edge_table', 'nrw_2po_4pgr'))
-        self.dockwidget.lineEditVerticesTable.setText(Utils.getStringValue(settings, '/orientationMapsCreator/sql/vertices_table', 'nrw_2po_4pgr_vertices_pgr'))
+        idx = self.dockwidget.comboBoxEdgesSchema.findText(Utils.getStringValue(settings, '/orientationMapsCreator/edge_schema', ''))
+        if idx >= 0:
+            self.dockwidget.comboBoxEdgesSchema.setCurrentIndex(idx)
+            
+        idx = self.dockwidget.comboBoxEdgesTable.findText(Utils.getStringValue(settings, '/orientationMapsCreator/edges_table', ''))
+        if idx >= 0:
+            self.dockwidget.comboBoxEdgesTable.setCurrentIndex(idx)
+
+        idx = self.dockwidget.comboBoxVerticesTable.findText(Utils.getStringValue(settings, '/orientationMapsCreator/vertices_table', ''))
+        if idx >= 0:
+            self.dockwidget.comboBoxVerticesTable.setCurrentIndex(idx)
+        
         self.dockwidget.lineEditGeometryColumn.setText(Utils.getStringValue(settings, '/orientationMapsCreator/sql/geometry', 'geom'))
         self.dockwidget.lineEditIDColumn.setText(Utils.getStringValue(settings, '/orientationMapsCreator/sql/id', 'id'))
         self.dockwidget.lineEditSourceColumn.setText(Utils.getStringValue(settings, '/orientationMapsCreator/sql/source', 'source'))
@@ -863,12 +938,15 @@ class orientationMapsCreator:
        
         
     def saveSettings(self):
+        
+        print "** saveSettings"
+        
         settings = QSettings()
         settings.setValue('/orientationMapsCreator/Database', self.dockwidget.comboBoxDatabase.currentText())
-        settings.setValue('/orientationMapsCreator/edge_schema', self.dockwidget.lineEditEdgesSchema.text())
+        settings.setValue('/orientationMapsCreator/edge_schema', self.dockwidget.comboBoxEdgesSchema.currentText())
         
-        settings.setValue('/orientationMapsCreator/sql/edge_table', self.dockwidget.lineEditEdgesTable.text())
-        settings.setValue('/orientationMapsCreator/sql/vertices_table', self.dockwidget.lineEditVerticesTable.text())
+        settings.setValue('/orientationMapsCreator/edges_table', self.dockwidget.comboBoxEdgesTable.currentText())
+        settings.setValue('/orientationMapsCreator/vertices_table', self.dockwidget.comboBoxVerticesTable.currentText())
         settings.setValue('/orientationMapsCreator/sql/geometry', self.dockwidget.lineEditGeometryColumn.text())
 
         settings.setValue('/orientationMapsCreator/sql/id', self.dockwidget.lineEditIDColumn.text())
