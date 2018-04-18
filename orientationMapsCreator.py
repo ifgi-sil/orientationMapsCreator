@@ -12,6 +12,12 @@ import psycopg2     #DatabaseError
 import re           #RegularExpressions
 import glob
 
+import sys
+sys.path.append('/usr/share/qgis/python/plugins')
+from processing.core.Processing import Processing
+Processing.initialize()
+from processing.tools import *
+
 
 # Initialize Qt resources from file resources.py
 import resources
@@ -519,7 +525,7 @@ class orientationMapsCreator:
             
             function.prepare(self.canvasItemList)       #clears previous route
             query = function.getQuery(args)
-            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Geometry Query:' + query)
+            #QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Geometry Query:' + query)
            
             cur = con.cursor()
             cur.execute(query)
@@ -593,7 +599,7 @@ class orientationMapsCreator:
 
             srid, geomType = Utils.getSridAndGeomType(con, args)
             layerName = self.getLayerName(args)
-            args['tmp_table'] = layerName
+            args['tmp_route_table'] = layerName
             
             #Drop table if exists
             if True in [layerName in t for t in db.list_geotables('tmp')]:
@@ -604,26 +610,20 @@ class orientationMapsCreator:
             #QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Geometry Query:\n' + tmpquery)
             Utils.logMessage('Export:\n' + tmpquery)
             cur.execute(self.cleanQuery(tmpquery))
-            con.commit()
+            con.commit()   
             
-            #Query new tmp table
-            query = """
-                SELECT * FROM tmp.%(tmp_table)s
-                """ % args
-            query = self.cleanQuery(query)
-            #QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Geometry Query:\n' + query)
-            Utils.logMessage('Export:\n' + query)         
+            # Specify tmp table in uri
+            uri = db.getURI()     
+            uri.setDataSource("tmp", layerName, "path_geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
             
-            # Save to vector layer
-            uri = db.getURI()
-            uri.setDataSource("", "(" + query + ")", "path_geom", "", "seq")
-            vl = self.iface.addVectorLayer(uri.uri(), layerName, db.getProviderName())
+            #Save to vector layer
+            vl = self.iface.addVectorLayer(uri.uri(), layerName, db.getProviderName())  
             if not vl:
                 QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
             
             # Save layers
             self.projectLayerList['route_psql'] = vl
-            self.projectLayerList['tmp_route'] = args['tmp_table']
+            self.projectLayerList['tmp_route_table'] = args['tmp_route_table']
             
 #             # Create VectorLayer > source is SQL Query, so it'll always have to queried again on reload
 #             tmpDir = self.getTempDir(layerName)
@@ -631,7 +631,10 @@ class orientationMapsCreator:
 #             # Write to tmp shapefile and load to layer for better view performance is qgis
 #             QgsVectorFileWriter.writeAsVectorFormat(qvl, tmpDir , "utf-8", None, "ESRI Shapefile")
 #             vl = self.iface.addVectorLayer(tmpDir, layerName, "ogr")
-#             self.projectLayerList['route_shapefile'] = vl      
+#             self.projectLayerList['route_shapefile'] = vl
+
+#             #use QGIS processing plugin to save as shapefile
+#             general.runalg("qgis:exportaddgeometrycolumns", vl, 0, "/tmp/tmp.shp")
             
         except psycopg2.DatabaseError, e:
             print "** Database Error"
@@ -652,6 +655,9 @@ class orientationMapsCreator:
                     QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
                         'server closed the connection unexpectedly')
                     
+        self.saveRoutePoints(args)
+        
+        
     def removeRoute(self):
         """Remove Route from layers and file system.
 
@@ -667,15 +673,6 @@ class orientationMapsCreator:
             del self.projectLayerList['route_psql']
 #         else:
 #             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route layer to be removed.')
-
-        # Remove Shapefile from disc            
-        if 'route_shapefile' in self.projectLayerList:
-            del self.projectLayerList['route_shapefile']
-                 
-            for file in glob.glob(source.split('.')[0]+"*"):
-                os.remove(file)
-#         else:
-#             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route shapefile to be removed.')
                 
         # Remove tmp database table
         if 'tmp_route' in self.projectLayerList:
@@ -686,15 +683,15 @@ class orientationMapsCreator:
                 con = db.con
                     
                 #Drop table if exists
-                if True in [self.projectLayerList['tmp_route'] in t for t in db.list_geotables('tmp')]:
-                    db.delete_table(self.projectLayerList['tmp_route'], 'tmp')            
+                if True in [self.projectLayerList['tmp_route_table'] in t for t in db.list_geotables('tmp')]:
+                    db.delete_table(self.projectLayerList['tmp_route_table'], 'tmp')            
             except psycopg2.DatabaseError, e:
                 print "** Database Error"
                 QApplication.restoreOverrideCursor()
                 QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
             
             finally:
-                del self.projectLayerList['tmp_route']
+                del self.projectLayerList['tmp_route_table']
                 QApplication.restoreOverrideCursor()
                 if db and db.con:
                     try:
@@ -704,7 +701,96 @@ class orientationMapsCreator:
                             'server closed the connection unexpectedly')
 #         else: 
 #             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route table to be removed.')
+
+#         # Remove Shapefile from disc            
+#         if 'route_shapefile' in self.projectLayerList:
+#             del self.projectLayerList['route_shapefile']
+#                  
+#             for file in glob.glob(source.split('.')[0]+"*"):
+#                 os.remove(file)
+#         else:
+#             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route shapefile to be removed.')
+          
+    def saveRoutePoints(self, args):
+        """Retrieve route points for calculated route.
+        
+        """
+        
+        print "** saveRoutePoints"
+        
+        #Check if route layer exists in projectLayerList
+        if not 'tmp_route_table' in self.projectLayerList:
+            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Route layer does not exist.')
+            return
+        
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+                    
+            #Check if route layer exists in DB
+            if not True in [self.projectLayerList['tmp_route_table'] in t for t in db.list_geotables('tmp')]:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Route table does not exist.')
+                return
             
+            args['tmp_vertice_table'] = args['tmp_route_table'] + '_vertices'
+            
+            #Drop table if exists
+            if True in [args['tmp_vertice_table'] in t for t in db.list_geotables('tmp')]:
+                db.delete_table(args['tmp_vertice_table'], 'tmp')
+            
+            
+            #Save route to new tmp table
+            tmpquery = """CREATE TABLE tmp.%(tmp_vertice_table)s AS
+                (SELECT route.seq-1 as seq, vertices.*
+                FROM tmp.%(tmp_route_table)s as route, %(edge_schema)s.%(vertice_table)s as vertices
+                WHERE route._node = vertices.id
+                UNION
+                SELECT route.seq as seq, vertices.* 
+                FROM (SELECT * FROM tmp.%(tmp_route_table)s ORDER BY seq DESC LIMIT 1) as route, %(edge_schema)s.%(vertice_table)s as vertices 
+                WHERE route._end_vid = vertices.id)""" % args
+            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Geometry Query:\n' + tmpquery)
+            
+            Utils.logMessage('SaveRoutePoints:\n' + tmpquery)
+            cur.execute(self.cleanQuery(tmpquery))
+            con.commit()
+            
+            
+            # Specify tmp table in uri
+            uri = db.getURI()     
+            uri.setDataSource("tmp", args['tmp_vertice_table'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            
+            #Save to vector layer
+            vl = self.iface.addVectorLayer(uri.uri(), args['tmp_vertice_table'], db.getProviderName())  
+            if not vl:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+            
+            # Save layer
+            self.projectLayerList['tmp_vertices'] = args['tmp_vertice_table']
+            
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')
+            
+            
+        
 
     def cleanQuery(self, msgQuery):
         query = msgQuery.replace('\n', ' ')
@@ -721,6 +807,8 @@ class orientationMapsCreator:
             args['edge_schema'] = self.dockwidget.comboBoxEdgesSchema.currentText()
         if 'comboBoxEdgesTable' in controls:
             args['edge_table'] = self.dockwidget.comboBoxEdgesTable.currentText()
+        if 'comboBoxVerticesTable' in controls:
+            args['vertice_table'] = self.dockwidget.comboBoxVerticesTable.currentText()    
         if 'lineEditGeometryColumn' in controls:
             args['geometry'] = self.dockwidget.lineEditGeometryColumn.text()
         if 'lineEditIDColumn' in controls:

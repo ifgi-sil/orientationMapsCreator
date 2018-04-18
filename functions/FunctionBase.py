@@ -100,7 +100,7 @@ class FunctionBase(object):
         args['merged_result_query'] = self.getExportQuery(args)
         
         query = """
-            CREATE TABLE tmp.%(tmp_table)s AS (%(merged_result_query)s)
+            CREATE TABLE tmp.%(tmp_route_table)s AS (%(merged_result_query)s)
             """ % args
         return query
 
