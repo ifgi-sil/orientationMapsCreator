@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>442</width>
+    <width>490</width>
     <height>999</height>
    </rect>
   </property>
@@ -48,9 +48,9 @@
        <property name="geometry">
         <rect>
          <x>0</x>
-         <y>0</y>
-         <width>414</width>
-         <height>1242</height>
+         <y>-415</y>
+         <width>462</width>
+         <height>1416</height>
         </rect>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout">
@@ -115,15 +115,24 @@
          </widget>
         </item>
         <item>
-         <widget class="QGroupBox" name="groupBoxEdgesDataset">
+         <widget class="QGroupBox" name="groupBoxRoute">
+          <property name="acceptDrops">
+           <bool>false</bool>
+          </property>
           <property name="title">
-           <string>Edges Dataset</string>
+           <string>Route</string>
+          </property>
+          <property name="flat">
+           <bool>false</bool>
+          </property>
+          <property name="checkable">
+           <bool>true</bool>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_2">
            <item>
-            <widget class="QGroupBox" name="groupBoxEdgesData">
+            <widget class="QGroupBox" name="groupBoxRouteDatasets">
              <property name="title">
-              <string/>
+              <string>Datasets</string>
              </property>
              <layout class="QGridLayout" name="gridLayout">
               <item row="1" column="0">
@@ -266,7 +275,7 @@
            <item>
             <widget class="QGroupBox" name="groupBoxEdgesRoute">
              <property name="title">
-              <string>Route</string>
+              <string>Route Attributes</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_4">
               <item row="1" column="0">
@@ -290,7 +299,7 @@
                </widget>
               </item>
               <item row="1" column="2">
-               <widget class="QToolButton" name="btnSelectSource">
+               <widget class="QToolButton" name="btnSelectSourceID">
                 <property name="text">
                  <string>...</string>
                 </property>
@@ -305,7 +314,7 @@
                </widget>
               </item>
               <item row="2" column="2">
-               <widget class="QToolButton" name="btnSelectTarget">
+               <widget class="QToolButton" name="btnSelectTargetID">
                 <property name="text">
                  <string>...</string>
                 </property>
@@ -343,13 +352,23 @@
                 </property>
                </widget>
               </item>
+              <item row="0" column="0">
+               <widget class="QLabel" name="lblMaxClazz">
+                <property name="text">
+                 <string>Max. Clazz</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QLineEdit" name="lineEditMaxClazz"/>
+              </item>
              </layout>
             </widget>
            </item>
            <item>
             <widget class="QGroupBox" name="groupBoxCalculateRoute">
              <property name="title">
-              <string/>
+              <string>Calculate Route</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_8">
               <item row="0" column="0">
@@ -377,6 +396,31 @@
                <widget class="QPushButton" name="btnRemoveRoute">
                 <property name="text">
                  <string>Remove Route</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QGroupBox" name="groupBoxAnalyzeRoute">
+             <property name="title">
+              <string>Analyze Route</string>
+             </property>
+             <layout class="QGridLayout" name="gridLayout_9">
+              <item row="0" column="0">
+               <widget class="QPushButton" name="btnAnalyzeRoute">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
+                <property name="text">
+                 <string>Analyze Route</string>
+                </property>
+                <property name="checkable">
+                 <bool>false</bool>
+                </property>
+                <property name="checked">
+                 <bool>false</bool>
                 </property>
                </widget>
               </item>
@@ -524,10 +568,10 @@
   <tabstop>checkBoxHasReverseCost</tabstop>
   <tabstop>checkBoxDirected</tabstop>
   <tabstop>lineEditSelectSourceID</tabstop>
-  <tabstop>btnSelectSource</tabstop>
+  <tabstop>btnSelectSourceID</tabstop>
   <tabstop>btnSelectRandomSource</tabstop>
   <tabstop>lineEditSelectTargetID</tabstop>
-  <tabstop>btnSelectTarget</tabstop>
+  <tabstop>btnSelectTargetID</tabstop>
   <tabstop>btnSelectRandomTarget</tabstop>
   <tabstop>btnPreviewRoute</tabstop>
   <tabstop>btnClearPreview</tabstop>
@@ -541,5 +585,86 @@
   <tabstop>lineEditDVGTables</tabstop>
  </tabstops>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>groupBoxRoute</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>groupBoxCalculateRoute</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>210</x>
+     <y>523</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>210</x>
+     <y>823</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>groupBoxRoute</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>groupBoxEdgesColumns</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>210</x>
+     <y>523</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>210</x>
+     <y>495</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>groupBoxRoute</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>groupBoxEdgesRoute</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>210</x>
+     <y>523</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>210</x>
+     <y>703</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>groupBoxRoute</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>groupBoxRouteDatasets</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>210</x>
+     <y>523</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>210</x>
+     <y>268</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>groupBoxRoute</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>groupBoxAnalyzeRoute</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>210</x>
+     <y>564</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>210</x>
+     <y>925</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

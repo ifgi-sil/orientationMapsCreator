@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-from qgis.core import *
-from qgis.gui import *
+#from PyQt4.QtCore import *
+from PyQt4.QtCore import Qt, QSettings, QObject, SIGNAL, QTranslator, QCoreApplication
+#from PyQt4.QtGui import *
+from PyQt4.QtGui import QIcon, QAction, QApplication, QMessageBox, QMessageBox, QColor
+#from qgis.core import *
+from qgis.core import QgsMapLayerRegistry, QgsVectorLayer, QgsFeature, QgsRectangle, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsGeometry
+#from qgis.gui import *
+from qgis.gui import QgsVertexMarker, QgsRubberBand, QgsMapToolEmitPoint
 from orientationMapsCreator_dockwidget import orientationMapsCreatorDockWidget
 import orientationMapsCreator_utils as Utils
 import dbConnection
@@ -13,17 +17,19 @@ import re           #RegularExpressions
 import glob
 
 import sys
-sys.path.append('/usr/share/qgis/python/plugins')
+sys.path.append('/usr/share/qgis/python/plugins')   #Import python processing tools
 from processing.core.Processing import Processing
 Processing.initialize()
-from processing.tools import *
+#from processing.tools import *
 
 
 # Initialize Qt resources from file resources.py
 import resources
-from qgis._core import QgsVectorLayer
+#from qgis._core import QgsVectorLayer
 
 conn = dbConnection.ConnectionManager()
+
+from functions import routeCalculator
 
 class orientationMapsCreator:
     """QGIS Plugin Implementation."""
@@ -38,6 +44,8 @@ class orientationMapsCreator:
             'lblTargetColumn',      'lineEditTargetColumn',
             'lblCostColumn',        'lineEditCostColumn',
             'lblReverseCostColumn', 'lineEditReverseCostColumn']
+    
+    FIND_RADIUS = 10
     
 
     def __init__(self, iface):
@@ -126,7 +134,10 @@ class orientationMapsCreator:
 
         self.pluginIsActive = False
         self.dockwidget = None
-
+        
+        
+        ## Test routeCalculator
+        self.routeCalculator = routeCalculator.routeCalculator()
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -232,6 +243,12 @@ class orientationMapsCreator:
         if self.dockwidget == None:
             # Create the dockwidget (after translation) and keep reference
             self.dockwidget = orientationMapsCreatorDockWidget()
+            
+        
+        self.idsEmitPoint = QgsMapToolEmitPoint(self.iface.mapCanvas())
+        self.sourceIdEmitPoint = QgsMapToolEmitPoint(self.iface.mapCanvas())
+        self.targetIdEmitPoint = QgsMapToolEmitPoint(self.iface.mapCanvas())
+        
                  
         # connect UI actions to methods
         QObject.connect(self.dockwidget.btnLoadDefaults, SIGNAL("clicked()"), self.loadDefaultConnections)
@@ -245,7 +262,16 @@ class orientationMapsCreator:
         QObject.connect(self.dockwidget.btnPreviewRoute, SIGNAL("clicked()"), self.previewRoute)
         QObject.connect(self.dockwidget.btnClearPreview, SIGNAL("clicked()"), self.clearPreview)
         QObject.connect(self.dockwidget.btnSaveRoute, SIGNAL("clicked()"), self.saveRoute)
+        #QObject.connect(self.dockwidget.btnSaveRoute, SIGNAL("clicked()"), self.routeCalculator.saveRoute)
+        QObject.connect(self.dockwidget.btnAnalyzeRoute, SIGNAL("clicked()"), self.analyzeRoute)
+        
         QObject.connect(self.dockwidget.btnRemoveRoute, SIGNAL("clicked()"), self.removeRoute)
+        
+        # One source id can be selected in some functions/version
+        QObject.connect(self.dockwidget.btnSelectSourceID, SIGNAL("clicked(bool)"), self.selectSourceId)
+        QObject.connect(self.sourceIdEmitPoint, SIGNAL("canvasClicked(const QgsPoint&, Qt::MouseButton)"), self.setSourceId)
+        QObject.connect(self.dockwidget.btnSelectTargetID, SIGNAL("clicked(bool)"), self.selectTargetId)
+        QObject.connect(self.targetIdEmitPoint, SIGNAL("canvasClicked(const QgsPoint&, Qt::MouseButton)"), self.setTargetId)
          
         self.functions = {}     #Route Calculation Functions: here only dijkstra
         for funcfname in self.SUPPORTED_FUNCTIONS:
@@ -612,7 +638,7 @@ class orientationMapsCreator:
             cur.execute(self.cleanQuery(tmpquery))
             con.commit()   
             
-            # Specify tmp table in uri
+            # Specify tmp table in uri for loading in qgis as vector layer
             uri = db.getURI()     
             uri.setDataSource("tmp", layerName, "path_geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
             
@@ -625,16 +651,37 @@ class orientationMapsCreator:
             self.projectLayerList['route_psql'] = vl
             self.projectLayerList['tmp_route_table'] = args['tmp_route_table']
             
+#             ### save as Shapefile
 #             # Create VectorLayer > source is SQL Query, so it'll always have to queried again on reload
 #             tmpDir = self.getTempDir(layerName)
+#             # Create VectorLayer with the route query as source
 #             qvl = QgsVectorLayer(uri.uri(), layerName, db.getProviderName())            
-#             # Write to tmp shapefile and load to layer for better view performance is qgis
+#             # Write the result to tmp shapefile and load to layer for better view performance is qgis
 #             QgsVectorFileWriter.writeAsVectorFormat(qvl, tmpDir , "utf-8", None, "ESRI Shapefile")
 #             vl = self.iface.addVectorLayer(tmpDir, layerName, "ogr")
 #             self.projectLayerList['route_shapefile'] = vl
 
-#             #use QGIS processing plugin to save as shapefile
+#             ### use QGIS processing plugin to save as shapefile
 #             general.runalg("qgis:exportaddgeometrycolumns", vl, 0, "/tmp/tmp.shp")
+
+
+#             ### Load route into memory layer
+#             feats = [feat for feat in vl.getFeatures()]
+#             mem_vl = QgsVectorLayer('LineString?crs=epsg:4326', 'tmp_memory_route', 'memory')
+#             #mem_vl.setCrs(vl.crs())
+#             mem_pr = mem_vl.dataProvider()
+#             mem_pr.addAttributes(vl.dataProvider().fields().toList())
+#             mem_vl.updateFields()
+#             
+#             mem_pr.addFeatures(feats)
+#             
+#             # Add memory layer as qgis layer
+#             QgsMapLayerRegistry.instance().addMapLayer(mem_vl)
+#             self.projectLayerList['tmp_memory_route'] = mem_vl
+            
+            #Enable Analyze Route Button
+            self.dockwidget.btnAnalyzeRoute.setEnabled(True)
+            
             
         except psycopg2.DatabaseError, e:
             print "** Database Error"
@@ -657,60 +704,7 @@ class orientationMapsCreator:
                     
         self.saveRoutePoints(args)
         
-        
-    def removeRoute(self):
-        """Remove Route from layers and file system.
-
-        """
-        
-        print "** removeRoute"
-        
-        # Remove layer from QGIS
-        if 'route_psql' in self.projectLayerList:
-            layer = self.projectLayerList['route_psql']
-            source = layer.dataProvider().dataSourceUri()
-            QgsMapLayerRegistry.instance().removeMapLayer(layer)
-            del self.projectLayerList['route_psql']
-#         else:
-#             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route layer to be removed.')
-                
-        # Remove tmp database table
-        if 'tmp_route' in self.projectLayerList:
-            db = None
-            try:
-                dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
-                db = self.connectionsDB[dbname].connect()
-                con = db.con
-                    
-                #Drop table if exists
-                if True in [self.projectLayerList['tmp_route_table'] in t for t in db.list_geotables('tmp')]:
-                    db.delete_table(self.projectLayerList['tmp_route_table'], 'tmp')            
-            except psycopg2.DatabaseError, e:
-                print "** Database Error"
-                QApplication.restoreOverrideCursor()
-                QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
-            
-            finally:
-                del self.projectLayerList['tmp_route_table']
-                QApplication.restoreOverrideCursor()
-                if db and db.con:
-                    try:
-                        db.con.close()
-                    except:
-                        QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
-                            'server closed the connection unexpectedly')
-#         else: 
-#             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route table to be removed.')
-
-#         # Remove Shapefile from disc            
-#         if 'route_shapefile' in self.projectLayerList:
-#             del self.projectLayerList['route_shapefile']
-#                  
-#             for file in glob.glob(source.split('.')[0]+"*"):
-#                 os.remove(file)
-#         else:
-#             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route shapefile to be removed.')
-          
+    
     def saveRoutePoints(self, args):
         """Retrieve route points for calculated route.
         
@@ -750,7 +744,7 @@ class orientationMapsCreator:
                 SELECT route.seq as seq, vertices.* 
                 FROM (SELECT * FROM tmp.%(tmp_route_table)s ORDER BY seq DESC LIMIT 1) as route, %(edge_schema)s.%(vertice_table)s as vertices 
                 WHERE route._end_vid = vertices.id)""" % args
-            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Geometry Query:\n' + tmpquery)
+            #QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Geometry Query:\n' + tmpquery)
             
             Utils.logMessage('SaveRoutePoints:\n' + tmpquery)
             cur.execute(self.cleanQuery(tmpquery))
@@ -767,7 +761,23 @@ class orientationMapsCreator:
                 QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
             
             # Save layer
-            self.projectLayerList['tmp_vertices'] = args['tmp_vertice_table']
+            self.projectLayerList['vertice_psql'] = vl
+            self.projectLayerList['tmp_vertice_table'] = args['tmp_vertice_table']
+            
+            
+#             ### Load vertices into memory layer
+#             feats = [feat for feat in vl.getFeatures()]
+#             mem_vl = QgsVectorLayer('Point?crs=epsg:4326', 'tmp_memory_vertices', 'memory')
+#             #mem_vl.setCrs(vl.crs())
+#             mem_pr = mem_vl.dataProvider()
+#             mem_pr.addAttributes(vl.dataProvider().fields().toList())
+#             mem_vl.updateFields()
+#             
+#             mem_pr.addFeatures(feats)
+#             
+#             # Add memory layer as qgis layer
+#             QgsMapLayerRegistry.instance().addMapLayer(mem_vl)
+#             self.projectLayerList['tmp_memory_vertices'] = mem_vl
             
             
         except psycopg2.DatabaseError, e:
@@ -788,8 +798,164 @@ class orientationMapsCreator:
                 except:
                     QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
                         'server closed the connection unexpectedly')
+                    
+    
+    def removeRoute(self):
+        """Remove Route from layers and file system.
+
+        """
+        
+        print "** removeRoute"
+        
+        # Remove layer from QGIS
+        if 'route_psql' in self.projectLayerList:
+            layer = self.projectLayerList['route_psql']
+            #source = layer.dataProvider().dataSourceUri()
+            QgsMapLayerRegistry.instance().removeMapLayer(layer)
+            del self.projectLayerList['route_psql']
+#         else:
+#             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route layer to be removed.')
+                
+        # Remove tmp database table
+        if 'tmp_route_table' in self.projectLayerList:
+            db = None
+            try:
+                dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+                db = self.connectionsDB[dbname].connect()
+                con = db.con
+                    
+                #Drop table if exists
+                if True in [self.projectLayerList['tmp_route_table'] in t for t in db.list_geotables('tmp')]:
+                    db.delete_table(self.projectLayerList['tmp_route_table'], 'tmp')            
+            except psycopg2.DatabaseError, e:
+                print "** Database Error"
+                QApplication.restoreOverrideCursor()
+                QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+            finally:
+                del self.projectLayerList['tmp_route_table']
+                QApplication.restoreOverrideCursor()
+                if db and db.con:
+                    try:
+                        db.con.close()
+                    except:
+                        QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                            'server closed the connection unexpectedly')
+#         else: 
+#             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route table to be removed.')
+        
+#         # Remove memory layer from QGIS
+#         if 'tmp_memory_route' in self.projectLayerList:
+#             layer = self.projectLayerList['tmp_memory_route']
+#             #source = layer.dataProvider().dataSourceUri()
+#             QgsMapLayerRegistry.instance().removeMapLayer(layer)
+#             del self.projectLayerList['tmp_memory_route']
             
             
+        self.removeRoutePoints()
+        
+#         # Remove Shapefile from disc            
+#         if 'route_shapefile' in self.projectLayerList:
+#             del self.projectLayerList['route_shapefile']
+#                  
+#             for file in glob.glob(source.split('.')[0]+"*"):
+#                 os.remove(file)
+#         else:
+#             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route shapefile to be removed.')
+            
+    
+    def removeRoutePoints(self):
+        """Remove Route Points from layers and file system.
+
+        """
+        
+        print "** removeRoutePoints"
+        
+        # Remove layer from QGIS
+        if 'vertice_psql' in self.projectLayerList:
+            layer = self.projectLayerList['vertice_psql']
+            source = layer.dataProvider().dataSourceUri()
+            QgsMapLayerRegistry.instance().removeMapLayer(layer)
+            del self.projectLayerList['vertice_psql']
+#         else:
+#             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route layer to be removed.')
+                
+        # Remove tmp database table
+        if 'tmp_vertice_table' in self.projectLayerList:
+            db = None
+            try:
+                dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+                db = self.connectionsDB[dbname].connect()
+                con = db.con
+                     
+                #Drop table if exists
+                if True in [self.projectLayerList['tmp_vertice_table'] in t for t in db.list_geotables('tmp')]:
+                    db.delete_table(self.projectLayerList['tmp_vertice_table'], 'tmp')            
+            except psycopg2.DatabaseError, e:
+                print "** Database Error"
+                QApplication.restoreOverrideCursor()
+                QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+             
+            finally:
+                del self.projectLayerList['tmp_vertice_table']
+                QApplication.restoreOverrideCursor()
+                if db and db.con:
+                    try:
+                        db.con.close()
+                    except:
+                        QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                            'server closed the connection unexpectedly')
+#         else: 
+#             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no vertices table to be removed.')
+        
+#         # Remove memory layer from QGIS
+#         if 'tmp_memory_vertices' in self.projectLayerList:
+#             layer = self.projectLayerList['tmp_memory_vertices']
+#             #source = layer.dataProvider().dataSourceUri()
+#             QgsMapLayerRegistry.instance().removeMapLayer(layer)
+#             del self.projectLayerList['tmp_memory_vertices']
+            
+    
+    def analyzeRoute(self):
+        """Analyze Route.
+        
+        ToDos:
+            1.) Load decision points into temporary layer / work with temp vertices layer
+            2.) Iterate through Vertices from Start to end.
+                2.1.) Retrieve incoming and outgoing route segment from route layer.
+                2.2.) Retrieve all other connected street segments from network table.
+                2.3.) Check if Vertice is a DP --> checkDP()
+                    yes --> maybe special treatment for following vertices needed (when eg. roundabout or exit)
+                2.4.) Save to DP layer with ID, if DP
+            3.) Extend vertices layer with colum that specifies the DP
+
+        """
+        
+        print "** analyzeRoute"
+        
+        temp_route = self.projectLayerList['tmp_memory_route']
+        
+        print "** analyzeRoute2"
+        
+    
+    def checkDP(self):
+        """Check if Vertice is a DP.
+        
+        ToDos:
+            1.) Retrieves Vertice + all connecting street segments with incoming and outgoing route.
+            2.) Case decision:
+                - degree 2 with angle larger than [45]° --> turn not at a junction [2]
+                - degree 3 with turn (specific angles?) --> turn at a t-junction [3]
+                - streets part of roundabout --> turn at a roundabout [5]
+                    (this will probable affect next DPs)
+                - degree 4 with route straight and same or higher class --> straight on [1]
+                - degree >= 4 with route not straight --> turn at junction [4]
+        
+                - class highway + exit (TODO) --> exit [6]
+        """
+        
+        print "** checkDP"
+        
         
 
     def cleanQuery(self, msgQuery):
@@ -799,6 +965,17 @@ class orientationMapsCreator:
         query = query.replace(' )', ')')
         query = query.strip()
         return query
+    
+    def toggleSelectButton(self, button):
+        selectButtons = [
+            self.dockwidget.btnSelectSourceID,
+            self.dockwidget.btnSelectTargetID
+        ]
+        for selectButton in selectButtons:
+            if selectButton != button:
+                if selectButton.isChecked():
+                    selectButton.click()
+                    
     
     def getArguments(self, controls):
         args = {}       #'dict'
@@ -827,6 +1004,9 @@ class orientationMapsCreator:
             args['reverse_cost'] = self.dockwidget.lineEditReverseCostColumn.text()
             #args['reverse_cost'] = ', ' + args['reverse_cost'] + '::float8 AS reverse_cost'
 
+        if 'lineEditMaxClazz' in controls:
+            args['max_clazz'] = self.dockwidget.lineEditMaxClazz.text()
+            
         if 'lineEditSelectSourceID' in controls:
             args['source_id'] = self.dockwidget.lineEditSelectSourceID.text()
             args['source_ids'] = self.dockwidget.lineEditSelectSourceID.text()
@@ -908,6 +1088,10 @@ class orientationMapsCreator:
         if 'lineEditReverseCostColumn' in controls:
             self.dockwidget.lineEditReverseCostColumn.setText('reverse_cost')
  
+        if 'lineEditMaxClazz' in controls:
+            self.dockwidget.lineEditMaxClazz.setText('50')
+            #self.dockwidget.lineEditSelectSourceID.insert(self.getRandomID())
+            
         if 'lineEditSelectSourceID' in controls:
             self.dockwidget.lineEditSelectSourceID.setText('437021')
             #self.dockwidget.lineEditSelectSourceID.insert(self.getRandomID())
@@ -940,6 +1124,57 @@ class orientationMapsCreator:
     def getTempDir(self, layerName):
         
         return "/tmp/" + layerName + ".shp"
+    
+    def selectSourceId(self, checked):
+        if checked:
+            self.toggleSelectButton(self.dockwidget.btnSelectSourceID)
+            self.dockwidget.lineEditSelectSourceID.setText("")
+            self.sourceIdVertexMarker.setVisible(False)
+            self.sourceIdRubberBand.reset(Utils.getRubberBandType(False))
+            self.iface.mapCanvas().setMapTool(self.sourceIdEmitPoint)
+        else:
+            self.iface.mapCanvas().unsetMapTool(self.sourceIdEmitPoint)
+    
+    def setSourceId(self, pt):
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        if not function.isEdgeBase():
+            result, id, wkt = self.findNearestNode(args, pt)
+            if result:
+                self.dockwidget.lineEditSelectSourceID.setText(str(id))
+                geom = QgsGeometry().fromWkt(wkt)
+                self.sourceIdVertexMarker.setCenter(geom.asPoint())
+                self.sourceIdVertexMarker.setVisible(True)
+                self.dockwidget.btnSelectSourceID.click()
+        else:
+            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'isEdgeBase.')
+        Utils.refreshMapCanvas(self.iface.mapCanvas())
+            
+    def selectTargetId(self, checked):
+        if checked:
+            self.toggleSelectButton(self.dockwidget.btnSelectTargetID)
+            self.dockwidget.lineEditSelectTargetID.setText("")
+            self.targetIdVertexMarker.setVisible(False)
+            self.targetIdRubberBand.reset(Utils.getRubberBandType(False))
+            self.iface.mapCanvas().setMapTool(self.targetIdEmitPoint)
+        else:
+            self.iface.mapCanvas().unsetMapTool(self.targetIdEmitPoint)
+            
+    def setTargetId(self, pt):
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        if not function.isEdgeBase():
+            ## TODO implement findNearestNode function
+            result, id, wkt = self.findNearestNode(args, pt)
+            if result:
+                self.dockwidget.lineEditSelectTargetID.setText(str(id))
+                geom = QgsGeometry().fromWkt(wkt)
+                self.targetIdVertexMarker.setCenter(geom.asPoint())
+                self.targetIdVertexMarker.setVisible(True)
+                self.dockwidget.btnSelectTargetID.click()
+        else:
+            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'isEdgeBase.')
+        Utils.refreshMapCanvas(self.iface.mapCanvas())
         
             
     def clearPreview(self):
@@ -990,6 +1225,138 @@ class orientationMapsCreator:
         self.canvasItemList['area'].reset(Utils.getRubberBandType(True))
 
 
+    def findNearestNode(self, args, pt):
+        distance = self.iface.mapCanvas().getCoordinateTransform().mapUnitsPerPixel() * self.FIND_RADIUS
+        rect = QgsRectangle(pt.x() - distance, pt.y() - distance, pt.x() + distance, pt.y() + distance)
+        canvasCrs = Utils.getDestinationCrs(self.iface.mapCanvas())
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            
+            #srid, geomType = self.getSridAndGeomType(con, args)
+            #srid, geomType = Utils.getSridAndGeomType(con, args['edge_table'], args['geometry'])
+            
+            #srid, geomType = Utils.getSridAndGeomType(con, '%(edge_table)s' % args, '%(geometry)s' % args)
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            if self.iface.mapCanvas().hasCrsTransformEnabled():
+                layerCrs = QgsCoordinateReferenceSystem()
+                Utils.createFromSrid(layerCrs, srid)
+                trans = QgsCoordinateTransform(canvasCrs, layerCrs)
+                pt = trans.transform(pt)
+                rect = trans.transform(rect)
+            
+            args['canvas_srid'] = Utils.getCanvasSrid(canvasCrs)
+            args['srid'] = srid
+            args['x'] = pt.x()
+            args['y'] = pt.y()
+            args['minx'] = rect.xMinimum()
+            args['miny'] = rect.yMinimum()
+            args['maxx'] = rect.xMaximum()
+            args['maxy'] = rect.yMaximum()
+            
+            args['clazz'] = 'clazz'
+            
+            Utils.setStartPoint(geomType, args)
+            Utils.setEndPoint(geomType, args)
+            #Utils.setTransformQuotes(args)
+            Utils.setTransformQuotes(args, srid, args['canvas_srid'])
+            
+            # Getting nearest source
+            query1 = """
+                SELECT e.%(source)s,
+                ST_Distance(
+                    v.geom,
+                    ST_GeomFromText('POINT(%(x)f %(y)f)', %(srid)d)
+                ) AS dist,
+                ST_AsText(%(transform_s)s v.geom %(transform_e)s)
+                FROM %(edge_schema)s.%(vertice_table)s as v, %(edge_schema)s.%(edge_table)s as e
+                WHERE
+                    v.id = e.%(source)s AND e.clazz < %(max_clazz)s
+                    ORDER BY v.geom <-> ST_SetSRID(ST_Point(%(x)f, %(y)f), %(srid)d) LIMIT 1""" % args
+                    
+            #QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % query1)
+            
+            ##Utils.logMessage(query1)
+            cur1 = con.cursor()
+            cur1.execute(query1)
+            row1 = cur1.fetchone()
+            d1 = None
+            source = None
+            wkt1 = None
+            if row1:
+                d1 = row1[1]
+                source = row1[0]
+                wkt1 = row1[2]
+            
+            # Getting nearest target
+            query2 = """
+                SELECT e.%(target)s,
+                ST_Distance(
+                    v.geom,
+                    ST_GeomFromText('POINT(%(x)f %(y)f)', %(srid)d)
+                ) AS dist,
+                ST_AsText(%(transform_s)s v.geom %(transform_e)s)
+                FROM %(edge_schema)s.%(vertice_table)s as v, %(edge_schema)s.%(edge_table)s as e
+                WHERE
+                    v.id = e.%(target)s AND e.clazz < %(max_clazz)s
+                    ORDER BY v.geom <-> ST_SetSRID(ST_Point(%(x)f, %(y)f), %(srid)d) LIMIT 1""" % args
+                    
+            #QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % query2)
+            
+            ##Utils.logMessage(query2)
+            cur2 = con.cursor()
+            cur2.execute(query2)
+            row2 = cur2.fetchone()
+            d2 = None
+            target = None
+            wkt2 = None
+            if row2:
+                d2 = row2[1]
+                target = row2[0]
+                wkt2 = row2[2]
+            
+            # Checking what is nearer - source or target
+            d = None
+            node = None
+            wkt = None
+            if d1 and (not d2):
+                node = source
+                d = d1
+                wkt = wkt1
+            elif (not d1) and d2:
+                node = target
+                d = d2
+                wkt = wkt2
+            elif d1 and d2:
+                if d1 < d2:
+                    node = source
+                    d = d1
+                    wkt = wkt1
+                else:
+                    node = target
+                    d = d2
+                    wkt = wkt2
+            
+            ##Utils.logMessage(str(d))
+            if (d == None) or (d > distance):
+                node = None
+                wkt = None
+                return False, None, None
+            
+            return True, node, wkt
+            
+        except psycopg2.DatabaseError, e:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            return False, None, None
+            
+        finally:
+            if db and db.con:
+                db.con.close()
+                
+
     def loadSettings(self):
         
         print "** loadSettings"
@@ -1018,6 +1385,7 @@ class orientationMapsCreator:
         self.dockwidget.lineEditCostColumn.setText(Utils.getStringValue(settings, '/orientationMapsCreator/sql/cost', 'cost'))
         self.dockwidget.lineEditReverseCostColumn.setText(Utils.getStringValue(settings, '/orientationMapsCreator/sql/reverse_cost', 'reverse_cost'))
         
+        self.dockwidget.lineEditMaxClazz.setText(Utils.getStringValue(settings, '/orientationMapsCreator/max_clazz', '50'))
         self.dockwidget.lineEditSelectSourceID.setText(Utils.getStringValue(settings, '/orientationMapsCreator/source_id', '437021'))
         self.dockwidget.lineEditSelectTargetID.setText(Utils.getStringValue(settings, '/orientationMapsCreator/target_id', '366598'))
 
@@ -1043,6 +1411,7 @@ class orientationMapsCreator:
         settings.setValue('/orientationMapsCreator/sql/cost', self.dockwidget.lineEditCostColumn.text())
         settings.setValue('/orientationMapsCreator/sql/reverse_cost', self.dockwidget.lineEditReverseCostColumn.text())
 
+        settings.setValue('/orientationMapsCreator/max_clazz', self.dockwidget.lineEditMaxClazz.text())
         settings.setValue('/orientationMapsCreator/source_id', self.dockwidget.lineEditSelectSourceID.text())
         settings.setValue('/orientationMapsCreator/target_id', self.dockwidget.lineEditSelectTargetID.text())
 

@@ -16,12 +16,12 @@ class Function(FunctionBase):
         self.version = version
         if self.version < 2.1:
             # version 2.0 has only one to one
-            return self.commonControls + self.commonBoxes + [
+            return self.commonControls + self.commonBoxes + [ 'lblMaxClazz', 'lineEditMaxClazz',
                 'lblSelectSourceID', 'lineEditSelectSourceID', 'btnSelectSource', 'btnSelectRandomSource',
                 'lblSelectTragetID', 'lineEditSelectTargetID', 'btnSelectTarget', 'btnSelectRandomTarget',
                     ]
         else:
-            return self.commonControls + self.commonBoxes + [
+            return self.commonControls + self.commonBoxes + [ 'lblMaxClazz', 'lineEditMaxClazz',
                 'lblSelectSourceID', 'lineEditSelectSourceID', 'btnSelectSource', 'btnSelectRandomSource',
                 'lblSelectTragetID', 'lineEditSelectTargetID', 'btnSelectTarget', 'btnSelectRandomTarget',
                     ]
