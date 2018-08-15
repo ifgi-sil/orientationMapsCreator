@@ -11,6 +11,7 @@ class FunctionBase(object):
     exportMergeButton = False
     exportEdgeBase = False
     commonControls = [
+        'lblResultsSchema',     'comboBoxResultsSchema',
         'lblEdgesSchema',       'comboBoxEdgesSchema',
         'lblEdgesTable',        'comboBoxEdgesTable',
         'lblVerticesTable',     'comboBoxVerticesTable',
@@ -19,7 +20,13 @@ class FunctionBase(object):
         'lblSourceColumn',      'lineEditSourceColumn',
         'lblTargetColumn',      'lineEditTargetColumn',
         'lblCostColumn',        'lineEditCostColumn',
-        'lblReverseCostColumn', 'lineEditReverseCostColumn'
+        'lblReverseCostColumn', 'lineEditReverseCostColumn',
+        'lblOpenNRWSchema',     'comboBoxOpenNRWSchema',
+        'lblOpenNRWDLM',        'comboBoxOpenNRWDLM',
+        'lblOSMSchema',         'comboBoxOSMSchema',
+        'lblOSMPointsTable',    'comboBoxOSMPointsTable',
+        'lblOSMLinesTable',     'comboBoxOSMLinesTable',
+        'lblOSMPolygonsTable',  'comboBoxOSMPolygonsTable'
         ]
     commonBoxes = [
         'checkBoxDirected',
@@ -100,7 +107,7 @@ class FunctionBase(object):
         args['merged_result_query'] = self.getExportQuery(args)
         
         query = """
-            CREATE TABLE tmp.%(tmp_route_table)s AS (%(merged_result_query)s)
+            CREATE TABLE %(results_schema)s.%(tmp_route_table)s AS (%(merged_result_query)s)
             """ % args
         return query
 

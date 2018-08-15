@@ -5,13 +5,14 @@ from PyQt4.QtCore import Qt, QSettings, QObject, SIGNAL, QTranslator, QCoreAppli
 #from PyQt4.QtGui import *
 from PyQt4.QtGui import QIcon, QAction, QApplication, QMessageBox, QMessageBox, QColor
 #from qgis.core import *
-from qgis.core import QgsMapLayerRegistry, QgsVectorLayer, QgsFeature, QgsRectangle, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsGeometry
+from qgis.core import QgsLayerTreeLayer, QgsProject, QgsMapLayerRegistry, QgsVectorLayer, QgsFeature, QgsRectangle, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsGeometry
 #from qgis.gui import *
 from qgis.gui import QgsVertexMarker, QgsRubberBand, QgsMapToolEmitPoint
 from orientationMapsCreator_dockwidget import orientationMapsCreatorDockWidget
 import orientationMapsCreator_utils as Utils
 import dbConnection
 import os
+plugin_path = os.path.dirname(os.path.realpath(__file__)) # Potentially fix subdirectories
 import psycopg2     #DatabaseError
 import re           #RegularExpressions
 import glob
@@ -98,13 +99,23 @@ class orientationMapsCreator:
             resultAreaRubberBand.setBrushStyle(Qt.Dense4Pattern)
         self.canvasItemList['area'] = resultAreaRubberBand
         
+        # Layer Panel Groups
+        self.projectLayerPanel = {}
+        
         #Layers added to the project
         self.projectLayerList = {}  
         
-        #DB-Schema List
+        # DB-Schema List for saving previous selections in comboBoxes
+        self.dbResultsSchemaSettings = {}
         self.dbSchemaSettings = {}
         self.dbEdgesTableSettings = {}
         self.dbVerticesTableSettings = {}
+        self.dbOpenNRWSchemaSettings = {}
+        self.dbOpenNRWDLMSettings = {}
+        self.dbOSMSchemaSettings = {}
+        self.dbOSMPointsSettings = {}
+        self.dbOSMLinesSettings = {}
+        self.dbOSMPolygonsSettings = {}
 
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
@@ -228,10 +239,11 @@ class orientationMapsCreator:
 
         return action
 
+
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
         
-        print "** initGui"   # this is executed when the QGIS/plugin is loaded
+        print "** initGui"   # this is executed when the QGIS/plugin is loaded           
         
         icon_path = ':/plugins/orientationMapsCreator/icon.png'
         self.add_action(
@@ -251,10 +263,15 @@ class orientationMapsCreator:
         
                  
         # connect UI actions to methods
+        QObject.connect(self.dockwidget.btnPrepareProject, SIGNAL("clicked()"), self.prepareProject)
+        
         QObject.connect(self.dockwidget.btnLoadDefaults, SIGNAL("clicked()"), self.loadDefaultConnections)
+        QObject.connect(self.dockwidget.btnRunAllFunctions, SIGNAL("clicked()"), self.runAllFunctions)        
+        QObject.connect(self.dockwidget.btnClearDatasets, SIGNAL("clicked()"), self.clearDatasets)
         QObject.connect(self.dockwidget.btnDatabaseRefresh, SIGNAL("clicked()"), self.reloadConnections)
         
         QObject.connect(self.dockwidget.comboBoxDatabase, SIGNAL("currentIndexChanged(const QString&)"), self.updateDatabaseConnectionEnabled)
+        QObject.connect(self.dockwidget.comboBoxResultsSchema, SIGNAL("currentIndexChanged(const QString&)"), self.updateResultsSchemaIndexChanged)
         QObject.connect(self.dockwidget.comboBoxEdgesSchema, SIGNAL("currentIndexChanged(const QString&)"), self.updateEdgesSchemaIndexChanged)
         QObject.connect(self.dockwidget.comboBoxEdgesTable, SIGNAL("currentIndexChanged(const QString&)"), self.updateEdgesTableIndexChanged)
         QObject.connect(self.dockwidget.comboBoxVerticesTable, SIGNAL("currentIndexChanged(const QString&)"), self.updateVerticesTableIndexChanged)
@@ -262,17 +279,35 @@ class orientationMapsCreator:
         QObject.connect(self.dockwidget.btnPreviewRoute, SIGNAL("clicked()"), self.previewRoute)
         QObject.connect(self.dockwidget.btnClearPreview, SIGNAL("clicked()"), self.clearPreview)
         QObject.connect(self.dockwidget.btnSaveRoute, SIGNAL("clicked()"), self.saveRoute)
-        #QObject.connect(self.dockwidget.btnSaveRoute, SIGNAL("clicked()"), self.routeCalculator.saveRoute)
-        QObject.connect(self.dockwidget.btnAnalyzeRoute, SIGNAL("clicked()"), self.analyzeRoute)
-        
         QObject.connect(self.dockwidget.btnRemoveRoute, SIGNAL("clicked()"), self.removeRoute)
+        #QObject.connect(self.dockwidget.btnSaveRoute, SIGNAL("clicked()"), self.routeCalculator.saveRoute)
+        
+        QObject.connect(self.dockwidget.btnBufferNetwork, SIGNAL("clicked()"), self.bufferNetwork)
+        QObject.connect(self.dockwidget.btnAnalyzeRoute, SIGNAL("clicked()"), self.analyzeRoute)
         
         # One source id can be selected in some functions/version
         QObject.connect(self.dockwidget.btnSelectSourceID, SIGNAL("clicked(bool)"), self.selectSourceId)
         QObject.connect(self.sourceIdEmitPoint, SIGNAL("canvasClicked(const QgsPoint&, Qt::MouseButton)"), self.setSourceId)
         QObject.connect(self.dockwidget.btnSelectTargetID, SIGNAL("clicked(bool)"), self.selectTargetId)
         QObject.connect(self.targetIdEmitPoint, SIGNAL("canvasClicked(const QgsPoint&, Qt::MouseButton)"), self.setTargetId)
-         
+        
+        
+        # OPEN NRW
+        QObject.connect(self.dockwidget.comboBoxOpenNRWSchema, SIGNAL("currentIndexChanged(const QString&)"), self.updateOpenNRWSchemaIndexChanged)
+        QObject.connect(self.dockwidget.comboBoxOpenNRWDLM, SIGNAL("currentIndexChanged(const QString&)"), self.updateOpenNRWDLMIndexChanged)
+        
+        QObject.connect(self.dockwidget.btnGetEnvironmentalRegions, SIGNAL("clicked()"), self.getEnvironmentalRegions)
+        QObject.connect(self.dockwidget.btnAddRegionsNetwork, SIGNAL("clicked()"), self.addRegionsNetwork)
+        QObject.connect(self.dockwidget.btnGetAdministrativeRegions, SIGNAL("clicked()"), self.getAdministrativeRegions)
+        
+        
+        # OSM
+        QObject.connect(self.dockwidget.comboBoxOSMSchema, SIGNAL("currentIndexChanged(const QString&)"), self.updateOSMSchemaIndexChanged)
+        QObject.connect(self.dockwidget.comboBoxOSMPointsTable, SIGNAL("currentIndexChanged(const QString&)"), self.updateOSMPointsIndexChanged)
+        QObject.connect(self.dockwidget.comboBoxOSMLinesTable, SIGNAL("currentIndexChanged(const QString&)"), self.updateOSMLinesIndexChanged)
+        QObject.connect(self.dockwidget.comboBoxOSMPolygonsTable, SIGNAL("currentIndexChanged(const QString&)"), self.updateOSMPolygonsIndexChanged)
+        
+        
         self.functions = {}     #Route Calculation Functions: here only dijkstra
         for funcfname in self.SUPPORTED_FUNCTIONS:
             # import the function
@@ -288,8 +323,9 @@ class orientationMapsCreator:
         self.reloadMessage = True
         
         
-    #--------------------------------------------------------------------------
+    # --------------------------------------------------------------------------
 
+    
     def onClosePlugin(self):
         """Cleanup necessary items here when plugin dockwidget is closed"""
 
@@ -326,7 +362,7 @@ class orientationMapsCreator:
     def loadDefaultConnections(self):
         """Load Default connection parameter"""
         
-        print "** loadDefaultConnections"
+        #print "** loadDefaultConnections"
         #TODO
         
         function = self.functions['dijkstra']
@@ -405,17 +441,36 @@ class orientationMapsCreator:
         if dbname =='':
             return
         
+        # temp save previous results_schema
+        curResultsSchema = ''
+        if dbname in self.dbResultsSchemaSettings:
+            curResultsSchema = self.dbResultsSchemaSettings[dbname]
+
+        self.dockwidget.comboBoxResultsSchema.clear()
+        
+        # temp save previous edges_schema
         curSchema = ''
         if dbname in self.dbSchemaSettings:
             curSchema = self.dbSchemaSettings[dbname]
 
         self.dockwidget.comboBoxEdgesSchema.clear()
+        
+        # temp save previous open_nrw_schema
+        curOpenNRWSchema = ''
+        if dbname in self.dbOpenNRWSchemaSettings:
+            curOpenNRWSchema = self.dbOpenNRWSchemaSettings[dbname]
+
+        self.dockwidget.comboBoxOpenNRWSchema.clear()
     
+        # retrieve schemas for new database
         try:
             db = self.connectionsDB[dbname].connect()
             con = db.con           
             for schema in db.list_schemas():
+                self.dockwidget.comboBoxResultsSchema.addItem(schema[1])
                 self.dockwidget.comboBoxEdgesSchema.addItem(schema[1])
+                self.dockwidget.comboBoxOpenNRWSchema.addItem(schema[1])
+                self.dockwidget.comboBoxOSMSchema.addItem(schema[1])
                 #print "** schema = ", schema[1]
                 
         except dbConnection.DbError, e:
@@ -425,6 +480,17 @@ class orientationMapsCreator:
             if db and db.con:
                 db.con.close()
                 
+                
+        #restore previously selected results schema if exists
+        idx = self.dockwidget.comboBoxResultsSchema.findText(curResultsSchema)
+        if idx >= 0:
+            self.dockwidget.comboBoxResultsSchema.setCurrentIndex(idx) #reset to previous selection
+        else:
+            self.dockwidget.comboBoxResultsSchema.setCurrentIndex(0)
+            
+        self.dbResultsSchemaSettings[dbname] = str(self.dockwidget.comboBoxResultsSchema.currentText())
+        
+        
         #restore previously selected schema if exists
         idx = self.dockwidget.comboBoxEdgesSchema.findText(curSchema)
         if idx >= 0:
@@ -433,10 +499,34 @@ class orientationMapsCreator:
             self.dockwidget.comboBoxEdgesSchema.setCurrentIndex(0)
             
         self.dbSchemaSettings[dbname] = str(self.dockwidget.comboBoxEdgesSchema.currentText())
+        
+        
+        #restore previously selected open_nrw_schema if exists
+        idx = self.dockwidget.comboBoxOpenNRWSchema.findText(curOpenNRWSchema)
+        if idx >= 0:
+            self.dockwidget.comboBoxOpenNRWSchema.setCurrentIndex(idx) #reset to previous selection
+        else:
+            self.dockwidget.comboBoxOpenNRWSchema.setCurrentIndex(0)
+            
+        self.dbOpenNRWSchemaSettings[dbname] = str(self.dockwidget.comboBoxOpenNRWSchema.currentText())
+        
 
         self.updateEdgesSchemaIndexChanged()
+        
+        
+    def updateResultsSchemaIndexChanged(self):
+        """Reload Tables of connected Schema"""
 
-    
+        #print "** updateResultsSchemaIndexChanged"
+        
+        dbname = str(self.dockwidget.comboBoxDatabase.currentText())
+        if dbname =='':
+            return
+        
+        schema = str(self.dockwidget.comboBoxResultsSchema.currentText())
+        self.dbResultsSchemaSettings[dbname] = schema
+        
+
     def updateEdgesSchemaIndexChanged(self):
         """Reload Tables of connected Schema"""
 
@@ -446,20 +536,25 @@ class orientationMapsCreator:
         if dbname =='':
             return
         
+        # save name of changed schema
         schema = str(self.dockwidget.comboBoxEdgesSchema.currentText())
         self.dbSchemaSettings[dbname] = schema
         
+        # temp save previous edges table
         curEdgesTable = ''
         if dbname+'.'+schema in self.dbEdgesTableSettings:
             curEdgesTable = self.dbEdgesTableSettings[dbname+'.'+schema]
             
+        # temp save previous vertices table
         curVerticesTable = ''
         if dbname+'.'+schema in self.dbVerticesTableSettings:
             curVerticesTable = self.dbVerticesTableSettings[dbname+'.'+schema]
         
+        # empty edges and vertices fields
         self.dockwidget.comboBoxEdgesTable.clear()
         self.dockwidget.comboBoxVerticesTable.clear()
         
+        # retrieve edges and vertices tables for new schema
         try:
             db = self.connectionsDB[dbname].connect()
             con = db.con
@@ -475,7 +570,7 @@ class orientationMapsCreator:
             if db and db.con:
                 db.con.close()
                 
-        #restore previously selected edges table if exists
+        # restore previously selected edges table if exists
         idx = self.dockwidget.comboBoxEdgesTable.findText(curEdgesTable)
         if idx >= 0:
             self.dockwidget.comboBoxEdgesTable.setCurrentIndex(idx) #reset to previous selection
@@ -483,7 +578,7 @@ class orientationMapsCreator:
             self.dockwidget.comboBoxEdgesTable.setCurrentIndex(0)   
         self.dbEdgesTableSettings[dbname+'.'+schema] = str(self.dockwidget.comboBoxEdgesTable.currentText())
         
-        #restore previously selected edges table if exists
+        # restore previously selected edges table if exists
         idx = self.dockwidget.comboBoxVerticesTable.findText(curVerticesTable)
         if idx >= 0:
             self.dockwidget.comboBoxVerticesTable.setCurrentIndex(idx) #reset to previous selection
@@ -511,6 +606,226 @@ class orientationMapsCreator:
         table = str(self.dockwidget.comboBoxVerticesTable.currentText())
         self.dbVerticesTableSettings[dbname+'.'+schema] = table
         
+        
+    def updateOpenNRWSchemaIndexChanged(self):
+        """Reload Tables of OPEN NRW Schema"""
+
+        #print "** updateOpenNRWSchemaIndexChanged"
+        
+        dbname = str(self.dockwidget.comboBoxDatabase.currentText())
+        if dbname =='':
+            return
+        
+        schema = str(self.dockwidget.comboBoxOpenNRWSchema.currentText())
+        self.dbOpenNRWSchemaSettings[dbname] = schema
+        
+        
+        # temp save previous edges table
+        curDLM = ''
+        if dbname+'.'+schema in self.dbOpenNRWDLMSettings:
+            curDLM = self.dbOpenNRWDLMSettings[dbname+'.'+schema]
+            
+        # empty edges and vertices fields
+        self.dockwidget.comboBoxOpenNRWDLM.clear()
+
+        
+        # retrieve edges and vertices tables for new schema
+        try:
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            for table in db.list_geotables(schema):
+                self.dockwidget.comboBoxOpenNRWDLM.addItem(table[0])
+                #print "** edgesVerticesTable = ", table[0]
+                
+        except dbConnection.DbError, e:
+            Utils.logMessage("dbname:" + dbname + ", " + e.msg)
+
+        finally:
+            if db and db.con:
+                db.con.close()
+                
+        # restore previously selected edges table if exists
+        idx = self.dockwidget.comboBoxOpenNRWDLM.findText(curDLM)
+        if idx >= 0:
+            self.dockwidget.comboBoxOpenNRWDLM.setCurrentIndex(idx) #reset to previous selection
+        else:
+            self.dockwidget.comboBoxOpenNRWDLM.setCurrentIndex(0)   
+        self.dbOpenNRWDLMSettings[dbname+'.'+schema] = str(self.dockwidget.comboBoxOpenNRWDLM.currentText())
+        
+    
+    def updateOpenNRWDLMIndexChanged(self):
+        """Reload Tables of OPEN NRW Schema"""
+
+        #print "** updateOpenNRWDLMIndexChanged"
+        
+        dbname = str(self.dockwidget.comboBoxDatabase.currentText())        
+        schema = str(self.dockwidget.comboBoxOpenNRWSchema.currentText())
+        table = str(self.dockwidget.comboBoxOpenNRWDLM.currentText())
+        self.dbOpenNRWDLMSettings[dbname+'.'+schema] = table
+        
+        
+    def updateOSMSchemaIndexChanged(self):
+        """Reload Tables of OSM Schema"""
+
+        #print "** updateOSMSchemaIndexChanged"
+        
+        dbname = str(self.dockwidget.comboBoxDatabase.currentText())
+        if dbname =='':
+            return
+        
+        schema = str(self.dockwidget.comboBoxOSMSchema.currentText())
+        self.dbOSMSchemaSettings[dbname] = schema
+        
+        
+        # temp save previous edges table
+        curPoints = ''
+        if dbname+'.'+schema in self.dbOSMPointsSettings:
+            curPoints = self.dbOSMPointsSettings[dbname+'.'+schema]
+            
+        
+        # temp save previous edges table
+        curLines = ''
+        if dbname+'.'+schema in self.dbOSMLinesSettings:
+            curLines = self.dbOSMLinesSettings[dbname+'.'+schema]
+            
+        curPolygons = ''
+        if dbname+'.'+schema in self.dbOSMPolygonsSettings:
+            curPolygons = self.dbOSMPolygonsSettings[dbname+'.'+schema]
+            
+        # empty edges and vertices fields
+        self.dockwidget.comboBoxOSMPointsTable.clear()
+        self.dockwidget.comboBoxOSMLinesTable.clear()
+        self.dockwidget.comboBoxOSMPolygonsTable.clear()
+
+        
+        # retrieve edges and vertices tables for new schema
+        try:
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            for table in db.list_geotables(schema):
+                self.dockwidget.comboBoxOSMPointsTable.addItem(table[0])
+                self.dockwidget.comboBoxOSMLinesTable.addItem(table[0])
+                self.dockwidget.comboBoxOSMPolygonsTable.addItem(table[0])
+                
+        except dbConnection.DbError, e:
+            Utils.logMessage("dbname:" + dbname + ", " + e.msg)
+
+        finally:
+            if db and db.con:
+                db.con.close()
+                
+        # restore previously selected edges table if exists
+        idx = self.dockwidget.comboBoxOSMPointsTable.findText(curPoints)
+        if idx >= 0:
+            self.dockwidget.comboBoxOSMPointsTable.setCurrentIndex(idx) #reset to previous selection
+        else:
+            self.dockwidget.comboBoxOSMPointsTable.setCurrentIndex(0)   
+        self.dbOSMPointsSettings[dbname+'.'+schema] = str(self.dockwidget.comboBoxOSMPointsTable.currentText())
+        
+        idx = self.dockwidget.comboBoxOSMLinesTable.findText(curLines)
+        if idx >= 0:
+            self.dockwidget.comboBoxOSMLinesTable.setCurrentIndex(idx) #reset to previous selection
+        else:
+            self.dockwidget.comboBoxOSMLinesTable.setCurrentIndex(0)   
+        self.dbOSMLinesSettings[dbname+'.'+schema] = str(self.dockwidget.comboBoxOSMLinesTable.currentText())
+        
+        idx = self.dockwidget.comboBoxOSMPolygonsTable.findText(curPolygons)
+        if idx >= 0:
+            self.dockwidget.comboBoxOSMPolygonsTable.setCurrentIndex(idx) #reset to previous selection
+        else:
+            self.dockwidget.comboBoxOSMPolygonsTable.setCurrentIndex(0)   
+        self.dbOSMPolygonsSettings[dbname+'.'+schema] = str(self.dockwidget.comboBoxOSMPolygonsTable.currentText())
+        
+    def updateOSMPointsIndexChanged(self):
+        """Reload Tables of OSM Schema"""
+
+        #print "** updateOSMPointsIndexChanged"
+        
+        dbname = str(self.dockwidget.comboBoxDatabase.currentText())        
+        schema = str(self.dockwidget.comboBoxOSMSchema.currentText())
+        table = str(self.dockwidget.comboBoxOSMPointsTable.currentText())
+        self.dbOSMPointsSettings[dbname+'.'+schema] = table
+        
+    def updateOSMLinesIndexChanged(self):
+        """Reload Tables of OSM Schema"""
+
+        #print "** updateOSMLinesIndexChanged"
+        
+        dbname = str(self.dockwidget.comboBoxDatabase.currentText())        
+        schema = str(self.dockwidget.comboBoxOSMSchema.currentText())
+        table = str(self.dockwidget.comboBoxOSMLinesTable.currentText())
+        self.dbOSMLinesSettings[dbname+'.'+schema] = table
+        
+    def updateOSMPolygonsIndexChanged(self):
+        """Reload Tables of OSM Schema"""
+
+        #print "** updateOSMPolygonsIndexChanged"
+        
+        dbname = str(self.dockwidget.comboBoxDatabase.currentText())        
+        schema = str(self.dockwidget.comboBoxOSMSchema.currentText())
+        table = str(self.dockwidget.comboBoxOSMPolygonsTable.currentText())
+        self.dbOSMPolygonsSettings[dbname+'.'+schema] = table
+        
+    # --------------------------------------------------------------------------
+    # Plugin Functions
+    
+    def prepareProject(self):
+        """Modify layer panel to add subsequent layers directly into right groups
+        
+        """
+        
+        print "** prepareProject"
+        
+        root = QgsProject.instance().layerTreeRoot()
+        self.projectLayerPanel['root'] = root
+        
+        self.projectLayerPanel['default'] = root.addGroup("Default")
+        self.projectLayerPanel['route'] = root.addGroup("Route")
+        self.projectLayerPanel['network_selection'] = root.addGroup("Network Selection")
+        self.projectLayerPanel['point_features'] = root.addGroup("Point Features")
+        self.projectLayerPanel['line_features'] = root.addGroup("Line Features")
+        self.projectLayerPanel['polygon_features'] = root.addGroup("Polygon Features")
+        self.projectLayerPanel['structural_regions'] = root.addGroup("Structural Regions")
+        self.projectLayerPanel['administrative_regions'] = self.projectLayerPanel['structural_regions'].addGroup("Administrative Regions")
+        self.projectLayerPanel['environmental_regions'] = self.projectLayerPanel['structural_regions'].addGroup("Environmental Regions")
+
+    
+    def runAllFunctions(self):
+        """Run all functions one after another.
+
+        """
+
+        print "** runAllFunctions"
+        
+        self.dockwidget.btnSaveRoute.click()
+        self.dockwidget.btnBufferNetwork.click()
+        self.dockwidget.btnAnalyzeRoute.click() 
+        self.dockwidget.btnGetEnvironmentalRegions.click() 
+        self.dockwidget.btnAddRegionsNetwork.click() 
+            
+        
+    def clearDatasets(self):
+        """Clear all datasets from previous calculations.
+
+        """
+
+        print "** clearDatasets"
+        
+        for l in self.projectLayerList.copy():
+            layer = self.projectLayerList[l]
+            #source = layer.dataProvider().dataSourceUri()
+            QgsMapLayerRegistry.instance().removeMapLayer(layer)
+            del layer
+            
+        for p in self.projectLayerPanel.copy():
+            panel = self.projectLayerPanel[p]
+            if panel != self.projectLayerPanel['root']:
+                self.projectLayerPanel['root'].removeChildNode(panel)
+                del panel
+            
+        del self.projectLayerPanel['root']
+        
+    
     
     def previewRoute(self):
         """Calculate Route from specified source to target using default postgis dijkstra function.
@@ -558,6 +873,7 @@ class orientationMapsCreator:
             rows = cur.fetchall()
             if  len(rows) == 0:
                 QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'No paths found in ' + self.getLayerName(args))
+                return
             
             args['srid'] = srid
             args['canvas_srid'] = Utils.getCanvasSrid(Utils.getDestinationCrs(self.iface.mapCanvas()))
@@ -592,6 +908,10 @@ class orientationMapsCreator:
         """
         
         print "** saveRoute"
+        
+        #Prepare project if not yet done
+        if not 'root' in self.projectLayerPanel.keys():
+            self.prepareProject()
         
         #Clear previous route
         self.removeRoute()
@@ -628,28 +948,41 @@ class orientationMapsCreator:
             args['tmp_route_table'] = layerName
             
             #Drop table if exists
-            if True in [layerName in t for t in db.list_geotables('tmp')]:
-                db.delete_table(layerName, 'tmp')
+            if True in [layerName in t for t in db.list_geotables(args['results_schema'])]:
+                db.delete_table(layerName, args['results_schema'])
             
             #Save route to new tmp table
-            tmpquery = function.getSaveExportQuery(args)
-            #QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Geometry Query:\n' + tmpquery)
-            Utils.logMessage('Export:\n' + tmpquery)
-            cur.execute(self.cleanQuery(tmpquery))
-            con.commit()   
+            query = function.getSaveExportQuery(args)
+            #QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Geometry Query:\n' + query)
+            Utils.logMessage('Export:\n' + query)
+            cur.execute(self.cleanQuery(query))
+            con.commit()
+            
+            # Create Index
+            db.create_spatial_index(args['tmp_route_table'], args['results_schema'], 'path_geom')
             
             # Specify tmp table in uri for loading in qgis as vector layer
             uri = db.getURI()     
-            uri.setDataSource("tmp", layerName, "path_geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            uri.setDataSource(args['results_schema'], layerName, "path_geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
             
-            #Save to vector layer
+            # Save to vector layer
             vl = self.iface.addVectorLayer(uri.uri(), layerName, db.getProviderName())  
             if not vl:
                 QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+                return
+            # Style layer
+            vl.loadNamedStyle(plugin_path + '/assets/styles/route.qml')
+            
             
             # Save layers
             self.projectLayerList['route_psql'] = vl
             self.projectLayerList['tmp_route_table'] = args['tmp_route_table']
+            
+            
+            # Move layer to group
+            #self.projectLayerPanel['route'].addLayer(vl)
+            #self.projectLayerPanel['root'].removeLayer(vl)            
+            
             
 #             ### save as Shapefile
 #             # Create VectorLayer > source is SQL Query, so it'll always have to queried again on reload
@@ -680,7 +1013,7 @@ class orientationMapsCreator:
 #             self.projectLayerList['tmp_memory_route'] = mem_vl
             
             #Enable Analyze Route Button
-            self.dockwidget.btnAnalyzeRoute.setEnabled(True)
+            self.dockwidget.btnBufferNetwork.setEnabled(True)
             
             
         except psycopg2.DatabaseError, e:
@@ -724,46 +1057,73 @@ class orientationMapsCreator:
             cur = con.cursor()
                     
             #Check if route layer exists in DB
-            if not True in [self.projectLayerList['tmp_route_table'] in t for t in db.list_geotables('tmp')]:
+            if not True in [self.projectLayerList['tmp_route_table'] in t for t in db.list_geotables(args['results_schema'])]:
                 QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Route table does not exist.')
                 return
             
             args['tmp_vertice_table'] = args['tmp_route_table'] + '_vertices'
+            args['tmp_vertice_table_start'] = args['tmp_route_table'] + '_start'
+            args['tmp_vertice_table_end'] = args['tmp_route_table'] + '_end'
             
             #Drop table if exists
-            if True in [args['tmp_vertice_table'] in t for t in db.list_geotables('tmp')]:
-                db.delete_table(args['tmp_vertice_table'], 'tmp')
+            if True in [args['tmp_vertice_table'] in t for t in db.list_geotables(args['results_schema'])]:
+                db.delete_table(args['tmp_vertice_table'], args['results_schema'])
             
             
-            #Save route to new tmp table
-            tmpquery = """CREATE TABLE tmp.%(tmp_vertice_table)s AS
+            #Save route points to separate table
+            query_create_vertices = """CREATE TABLE %(results_schema)s.%(tmp_vertice_table)s AS
                 (SELECT route.seq-1 as seq, vertices.*
-                FROM tmp.%(tmp_route_table)s as route, %(edge_schema)s.%(vertice_table)s as vertices
+                FROM %(results_schema)s.%(tmp_route_table)s as route, %(edge_schema)s.%(vertice_table)s as vertices
                 WHERE route._node = vertices.id
                 UNION
                 SELECT route.seq as seq, vertices.* 
-                FROM (SELECT * FROM tmp.%(tmp_route_table)s ORDER BY seq DESC LIMIT 1) as route, %(edge_schema)s.%(vertice_table)s as vertices 
+                FROM (SELECT * FROM %(results_schema)s.%(tmp_route_table)s ORDER BY seq DESC LIMIT 1) as route, %(edge_schema)s.%(vertice_table)s as vertices 
                 WHERE route._end_vid = vertices.id)""" % args
-            #QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Geometry Query:\n' + tmpquery)
+            #QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Geometry Query:\n' + query_create_vertices)
             
-            Utils.logMessage('SaveRoutePoints:\n' + tmpquery)
-            cur.execute(self.cleanQuery(tmpquery))
+            Utils.logMessage('SaveRoutePoints:\n' + query_create_vertices)
+            cur.execute(self.cleanQuery(query_create_vertices))
             con.commit()
             
+            # Create Index
+            db.create_spatial_index(args['tmp_vertice_table'], args['results_schema'], 'geom')
+                        
             
             # Specify tmp table in uri
             uri = db.getURI()     
-            uri.setDataSource("tmp", args['tmp_vertice_table'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            uri.setDataSource(args['results_schema'], args['tmp_vertice_table'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            
             
             #Save to vector layer
             vl = self.iface.addVectorLayer(uri.uri(), args['tmp_vertice_table'], db.getProviderName())  
             if not vl:
                 QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
-            
-            # Save layer
             self.projectLayerList['vertice_psql'] = vl
-            self.projectLayerList['tmp_vertice_table'] = args['tmp_vertice_table']
+            self.projectLayerList['tmp_vertice_table'] = args['tmp_vertice_table']          
             
+            
+            # Save start pnt
+            uri_start = db.getURI()     
+            uri_start.setDataSource(args['results_schema'], args['tmp_vertice_table'], "geom", "seq = (SELECT min(seq) FROM "+ args['results_schema'] + "." + args['tmp_vertice_table'] +")", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            vl_start = self.iface.addVectorLayer(uri_start.uri(), args['tmp_vertice_table_start'], db.getProviderName())  
+            if not vl_start:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+            vl_start.loadNamedStyle(plugin_path + '/assets/styles/route_start_marker.qml')
+            self.projectLayerList['vertice_start_psql'] = vl_start
+            self.projectLayerList['tmp_vertice_table_start'] = args['tmp_vertice_table_start']
+            
+            
+            # Save end pnt
+            uri_end = db.getURI()     
+            uri_end.setDataSource(args['results_schema'], args['tmp_vertice_table'], "geom", "seq = (SELECT max(seq) FROM "+ args['results_schema'] + "." + args['tmp_vertice_table'] +")", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            vl_end = self.iface.addVectorLayer(uri_end.uri(), args['tmp_vertice_table_end'], db.getProviderName())  
+            if not vl_end:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+            vl_end.loadNamedStyle(plugin_path + '/assets/styles/route_end_marker.qml')
+            self.projectLayerList['vertice_end_psql'] = vl_end
+            self.projectLayerList['tmp_vertice_table_end'] = args['tmp_vertice_table_end']
+            
+            self.moveRouteLayers()            
             
 #             ### Load vertices into memory layer
 #             feats = [feat for feat in vl.getFeatures()]
@@ -807,15 +1167,18 @@ class orientationMapsCreator:
         
         print "** removeRoute"
         
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        
         # Remove layer from QGIS
         if 'route_psql' in self.projectLayerList:
             layer = self.projectLayerList['route_psql']
             #source = layer.dataProvider().dataSourceUri()
             QgsMapLayerRegistry.instance().removeMapLayer(layer)
             del self.projectLayerList['route_psql']
-#         else:
-#             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route layer to be removed.')
-                
+        #         else:
+#             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route layer to be removed.')     
+        
         # Remove tmp database table
         if 'tmp_route_table' in self.projectLayerList:
             db = None
@@ -825,8 +1188,8 @@ class orientationMapsCreator:
                 con = db.con
                     
                 #Drop table if exists
-                if True in [self.projectLayerList['tmp_route_table'] in t for t in db.list_geotables('tmp')]:
-                    db.delete_table(self.projectLayerList['tmp_route_table'], 'tmp')            
+                if True in [self.projectLayerList['tmp_route_table'] in t for t in db.list_geotables(args['results_schema'])]:
+                    db.delete_table(self.projectLayerList['tmp_route_table'], args['results_schema'])            
             except psycopg2.DatabaseError, e:
                 print "** Database Error"
                 QApplication.restoreOverrideCursor()
@@ -852,7 +1215,7 @@ class orientationMapsCreator:
 #             del self.projectLayerList['tmp_memory_route']
             
             
-        self.removeRoutePoints()
+        self.removeRoutePoints(args)
         
 #         # Remove Shapefile from disc            
 #         if 'route_shapefile' in self.projectLayerList:
@@ -864,7 +1227,7 @@ class orientationMapsCreator:
 #             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route shapefile to be removed.')
             
     
-    def removeRoutePoints(self):
+    def removeRoutePoints(self, args):
         """Remove Route Points from layers and file system.
 
         """
@@ -874,9 +1237,19 @@ class orientationMapsCreator:
         # Remove layer from QGIS
         if 'vertice_psql' in self.projectLayerList:
             layer = self.projectLayerList['vertice_psql']
-            source = layer.dataProvider().dataSourceUri()
+            #source = layer.dataProvider().dataSourceUri()
             QgsMapLayerRegistry.instance().removeMapLayer(layer)
             del self.projectLayerList['vertice_psql']
+        if 'vertice_start_psql' in self.projectLayerList:
+            layer = self.projectLayerList['vertice_start_psql']
+            #source = layer.dataProvider().dataSourceUri()
+            QgsMapLayerRegistry.instance().removeMapLayer(layer)
+            del self.projectLayerList['vertice_start_psql']
+        if 'vertice_end_psql' in self.projectLayerList:
+            layer = self.projectLayerList['vertice_end_psql']
+            #source = layer.dataProvider().dataSourceUri()
+            QgsMapLayerRegistry.instance().removeMapLayer(layer)
+            del self.projectLayerList['vertice_end_psql']
 #         else:
 #             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'There is no route layer to be removed.')
                 
@@ -889,8 +1262,8 @@ class orientationMapsCreator:
                 con = db.con
                      
                 #Drop table if exists
-                if True in [self.projectLayerList['tmp_vertice_table'] in t for t in db.list_geotables('tmp')]:
-                    db.delete_table(self.projectLayerList['tmp_vertice_table'], 'tmp')            
+                if True in [self.projectLayerList['tmp_vertice_table'] in t for t in db.list_geotables(args['results_schema'])]:
+                    db.delete_table(self.projectLayerList['tmp_vertice_table'], args['results_schema'])            
             except psycopg2.DatabaseError, e:
                 print "** Database Error"
                 QApplication.restoreOverrideCursor()
@@ -916,6 +1289,97 @@ class orientationMapsCreator:
 #             del self.projectLayerList['tmp_memory_vertices']
             
     
+    def bufferNetwork(self):
+        """Buffer Network.
+        
+        """
+        
+        print "** bufferNetwork"
+        
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        
+        empties = []
+        for key in args.keys():
+            if not args[key]:
+                empties.append(key)
+        
+        if len(empties) > 0:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                'Following argument is not specified.\n' + ','.join(empties))
+            return
+        
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+            
+            version = Utils.getPgrVersion(con)
+            args['version'] = version
+            if (self.version!=version) :
+                QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                  'versions are different')
+
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            
+            args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            args['edge_table_buffered'] = args['edge_table'] + "_buffered"
+            
+            
+            #Buffer network with length of route
+            query_buffer_network = """DROP TABLE IF EXISTS %(results_schema)s.%(edge_table_buffered)s;
+                SELECT * 
+                INTO %(results_schema)s.%(edge_table_buffered)s
+                FROM my_route_length_buffer('%(edge_schema)s.%(edge_table)s', '%(results_schema)s.%(tmp_route_table)s', 1)""" % args
+            
+            Utils.logMessage('Calculate Angles of Route Points:\n' + query_buffer_network)
+            cur.execute(self.cleanQuery(query_buffer_network))
+            con.commit()
+            
+            # Create Index
+            db.create_spatial_index(args['edge_table_buffered'], args['results_schema'], 'geom')
+            
+            # Specify tmp table in uri for loading in qgis as vector layer
+            uri = db.getURI()     
+            uri.setDataSource(args['results_schema'], args['edge_table_buffered'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            
+            # Save to vector layer
+            vl = self.iface.addVectorLayer(uri.uri(), args['edge_table_buffered'], db.getProviderName())  
+            if not vl:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+            # Style layer
+            vl.loadNamedStyle(plugin_path + '/assets/styles/osm2po_network_2.qml')
+            
+            self.projectLayerList['buffered_network_psql'] = vl
+            self.projectLayerList['edge_table_buffered'] = args['edge_table_buffered']
+            
+            self.moveBufferLayer()
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')
+        
+        self.dockwidget.btnAnalyzeRoute.setEnabled(True)
+        
+    
     def analyzeRoute(self):
         """Analyze Route.
         
@@ -933,11 +1397,606 @@ class orientationMapsCreator:
         
         print "** analyzeRoute"
         
-        temp_route = self.projectLayerList['tmp_memory_route']
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
         
-        print "** analyzeRoute2"
+        empties = []
+        for key in args.keys():
+            if not args[key]:
+                empties.append(key)
+        
+        if len(empties) > 0:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                'Following argument is not specified.\n' + ','.join(empties))
+            return
+        
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+            
+            version = Utils.getPgrVersion(con)
+            args['version'] = version
+            if (self.version!=version) :
+                QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                  'versions are different')
+
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+
+            args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            args['tmp_vertice_table'] = self.projectLayerList['tmp_vertice_table']
+            args['tmp_vertice_table_junctions'] = args['tmp_route_table'] + '_junctions'
+            args['tmp_vertice_table_dps'] = args['tmp_route_table'] + '_dps'
+            args['tmp_vertice_table_any'] = args['tmp_route_table'] + '_any'
+            args['edge_table_buffered'] = self.projectLayerList['edge_table_buffered']
+
+            
+            #Calculate angeles of route vertices
+            query_calculate_angles = """ALTER TABLE %(results_schema)s.%(tmp_vertice_table)s
+                ADD COLUMN angle numeric;
+                UPDATE %(results_schema)s.%(tmp_vertice_table)s a SET angle=new_angle
+                FROM (
+                    SELECT *,
+                        abs(round(degrees(
+                        ST_Azimuth(ST_Transform(geom,32632),(lag(ST_Transform(geom,32632),-1) OVER(ORDER BY seq) ))
+                        )::decimal,2)) AS new_angle
+                    FROM %(results_schema)s.%(tmp_vertice_table)s
+                ) b
+                WHERE a.id = b.id""" % args
+            
+            Utils.logMessage('Calculate Angles of Route Points:\n' + query_calculate_angles)
+            cur.execute(self.cleanQuery(query_calculate_angles))
+            con.commit()
+            
+            
+            #Calculate angeles of route vertices
+            query_analyze_dps = """ALTER TABLE %(results_schema)s.%(tmp_vertice_table)s ADD COLUMN dp_type integer;
+                UPDATE %(results_schema)s.%(tmp_vertice_table)s a SET dp_type=b.dp_type
+                FROM (
+                    SELECT * FROM my_route_get_dp('%(results_schema)s.%(edge_table_buffered)s', '%(results_schema)s.%(tmp_route_table)s', '%(results_schema)s.%(tmp_vertice_table)s', 30)
+                ) b
+                WHERE a.id = b.id""" % args
+                
+                
+            Utils.logMessage('Analyze DPs of Route Points:\n' + query_analyze_dps)
+            cur.execute(self.cleanQuery(query_analyze_dps))
+            con.commit()
+            
+            
+            # Specify tmp table in uri
+            uri = db.getURI()     
+            uri.setDataSource(args['results_schema'], args['tmp_vertice_table'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            
+            
+            # Save layer as junctions
+            vl_junctions = self.iface.addVectorLayer(uri.uri(), args['tmp_vertice_table_junctions'], db.getProviderName())  
+            if not vl_junctions:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+            vl_junctions.loadNamedStyle(plugin_path + '/assets/styles/route_junctions.qml')
+            self.projectLayerList['vertice_junctions_psql'] = vl_junctions
+            self.projectLayerList['tmp_vertice_table_junctions'] = args['tmp_vertice_table_junctions']
+            
+            
+            # Save layer as DPs
+            vl_dps = self.iface.addVectorLayer(uri.uri(), args['tmp_vertice_table_dps'], db.getProviderName())  
+            if not vl_dps:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+            vl_dps.loadNamedStyle(plugin_path + '/assets/styles/route_dps.qml')
+            self.projectLayerList['vertice_dps_psql'] = vl_dps
+            self.projectLayerList['tmp_vertice_table_dps'] = args['tmp_vertice_table_dps']  
+            
+            
+            # Save any pnt to be shown as location
+            uri_any = db.getURI()     
+            uri_any.setDataSource(args['results_schema'], args['tmp_vertice_table'], "geom", "seq = 10", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            vl_any = self.iface.addVectorLayer(uri_any.uri(), args['tmp_vertice_table_any'], db.getProviderName())  
+            if not vl_any:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+            vl_any.loadNamedStyle(plugin_path + '/assets/styles/route_pnt.qml')
+            self.projectLayerList['vertice_any_psql'] = vl_any
+            self.projectLayerList['tmp_vertice_table_any'] = args['tmp_vertice_table_any']
+            
+            
+            self.moveAnalyzedRoute()
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')
+
+
+    def getEnvironmentalRegions(self):
+        """Retrieve urban areas from the OpenNRW dataset within sepcified buffer around the route.
+        
+        """
+        
+        print "** getEnvironmentalRegions"
+        
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        
+        empties = []
+        for key in args.keys():
+            if not args[key]:
+                empties.append(key)
+        
+        if len(empties) > 0:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                'Following argument is not specified.\n' + ','.join(empties))
+            return
+        
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+            
+            version = Utils.getPgrVersion(con)
+            args['version'] = version
+            if (self.version!=version) :
+                QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                  'versions are different')
+
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            
+            args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            args['urban_areas'] = 'urban_areas'
+            args['urban_labels'] = 'urban_labels'
+            
+            #SQL Query
+            # SELECT * FROM %(results_schema)s.%(tmp_route_table)s
+            query = """DROP TABLE IF EXISTS %(results_schema)s.%(urban_areas)s;
+                SELECT * INTO %(results_schema)s.%(urban_areas)s
+                FROM my_regions_route_intersect_buffer('%(open_nrw_schema)s.%(open_nrw_dlm)s', '%(results_schema)s.%(tmp_route_table)s', 
+                    ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000));
+                ALTER TABLE %(results_schema)s.%(urban_areas)s ADD COLUMN shape_length numeric, ADD COLUMN shape_area numeric;
+                UPDATE %(results_schema)s.%(urban_areas)s SET shape_length=ST_Perimeter(ST_Transform(geom,32632)), shape_area=ST_Area(ST_Transform(geom,32632));
+                UPDATE %(results_schema)s.%(urban_areas)s as t SET geom = a.geom FROM
+                    (SELECT id, ST_Collect(ST_MakePolygon(geom)) As geom
+                    FROM (SELECT id, ST_ExteriorRing((ST_Dump(geom)).geom) As geom FROM %(results_schema)s.%(urban_areas)s) as s
+                    GROUP BY id) as a
+                    WHERE t.id = a.id;""" % args
+                            
+            #QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(),query)
+
+            Utils.logMessage('Query:\n' + query)
+            cur.execute(self.cleanQuery(query))
+            con.commit()
+            
+            
+            # Urban areas
+            uri = db.getURI()     
+            uri.setDataSource(args['results_schema'], args['urban_areas'], "geom", "", "id")     #path_geom holds route segments in correct subsequent order != geom
+            vl = self.iface.addVectorLayer(uri.uri(), args['urban_areas'], db.getProviderName())  
+            if not vl:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+            vl.loadNamedStyle(plugin_path + '/assets/styles/urban_areas.qml')
+            self.projectLayerList['urban_areas_psql'] = vl
+            self.projectLayerList['urban_areas'] = args['urban_areas']
+            
+            # Urban labels 
+            vl_labels = self.iface.addVectorLayer(uri.uri(), args['urban_labels'], db.getProviderName())  
+            if not vl_labels:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+            vl_labels.loadNamedStyle(plugin_path + '/assets/styles/urban_labels.qml')
+            self.projectLayerList['urban_labels_psql'] = vl_labels
+            self.projectLayerList['urban_labels'] = args['urban_labels']
+            
+            self.moveEnvironmentalRegions()
+            
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')
         
     
+    def addRegionsNetwork(self):
+        """Merge network within the regions into the network dataset.
+        
+        """
+        
+        print "** addRegionsNetwork"
+        
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        
+        empties = []
+        for key in args.keys():
+            if not args[key]:
+                empties.append(key)
+        
+        if len(empties) > 0:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                'Following argument is not specified.\n' + ','.join(empties))
+            return
+        
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+            
+            version = Utils.getPgrVersion(con)
+            args['version'] = version
+            if (self.version!=version) :
+                QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                  'versions are different')
+
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            
+            args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            args['edge_table_buffered'] = self.projectLayerList['edge_table_buffered']
+            args['urban_areas'] = self.projectLayerList['urban_areas']
+            
+            
+            #SQL Query
+            query = """INSERT INTO %(results_schema)s.%(edge_table_buffered)s
+                SELECT s.* FROM
+                    (SELECT * FROM my_route_length_buffer('%(edge_schema)s.%(edge_table)s', '%(results_schema)s.%(tmp_route_table)s', 0.25)) s, %(results_schema)s.%(urban_areas)s r
+                    WHERE ST_Intersects(ST_Transform(s.geom, 32632), ST_Transform(r.geom, 32632)) AND 
+                        s.id not in (SELECT id FROM %(results_schema)s.%(edge_table_buffered)s)""" % args
+                
+                
+            Utils.logMessage('Query:\n' + query)
+            cur.execute(self.cleanQuery(query))
+            con.commit()
+            
+            
+            self.projectLayerList['buffered_network_psql'].triggerRepaint()
+            
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')
+        
+    
+    def getAdministrativeRegions(self):
+        """getAdministrativeRegions
+        
+        """
+        
+        print "** getAdministrativeRegions"
+        
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        
+        empties = []
+        for key in args.keys():
+            if not args[key]:
+                empties.append(key)
+        
+        if len(empties) > 0:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                'Following argument is not specified.\n' + ','.join(empties))
+            return
+        
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+            
+            version = Utils.getPgrVersion(con)
+            args['version'] = version
+            if (self.version!=version) :
+                QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                  'versions are different')
+
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            
+            args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            args['adminlevel_9'] = 'adminlevel_9'
+            args['adminlevel_10'] = 'adminlevel_10'
+            args['adminlevel_11'] = 'adminlevel_11'
+            
+            #SQL Query
+            query = """DROP TABLE IF EXISTS %(results_schema)s.%(adminlevel_9)s;
+                WITH lines as (
+                    SELECT DISTINCT ON (osm_id) osm_id, name, ST_LineMerge(way) as way FROM %(osm_schema)s.%(osm_lines)s WHERE boundary = 'administrative' AND admin_level = '9' AND ST_IsClosed(way) GROUP BY osm_id,way,name
+                )
+                SELECT osm_id, name, ST_MakePolygon(way) as geom INTO %(results_schema)s.tmp FROM lines;
+                SELECT * INTO %(results_schema)s.%(adminlevel_9)s FROM my_admin_regions_route_intersect_buffer('%(results_schema)s.tmp', '%(results_schema)s.%(tmp_route_table)s', ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000)) a;
+                DROP TABLE IF EXISTS %(results_schema)s.tmp;
+                
+                DROP TABLE IF EXISTS %(results_schema)s.%(adminlevel_10)s;
+                WITH lines as (
+                    SELECT DISTINCT ON (osm_id) osm_id, name, ST_LineMerge(way) as way FROM %(osm_schema)s.%(osm_lines)s WHERE boundary = 'administrative' AND admin_level = '10' AND ST_IsClosed(way) GROUP BY osm_id,way,name
+                )
+                SELECT osm_id, name, ST_MakePolygon(way) as geom INTO %(results_schema)s.tmp FROM lines;
+                SELECT * INTO %(results_schema)s.%(adminlevel_10)s FROM my_admin_regions_route_intersect_buffer('%(results_schema)s.tmp', '%(results_schema)s.%(tmp_route_table)s', ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000)) a;
+                DROP TABLE IF EXISTS %(results_schema)s.tmp;
+                
+                DROP TABLE IF EXISTS %(results_schema)s.%(adminlevel_11)s;
+                WITH lines as (
+                    SELECT DISTINCT ON (osm_id) osm_id, name, ST_LineMerge(way) as way FROM %(osm_schema)s.%(osm_lines)s WHERE boundary = 'administrative' AND admin_level = '11' AND ST_IsClosed(way) GROUP BY osm_id,way,name
+                )
+                SELECT osm_id, name, ST_MakePolygon(way) as geom INTO %(results_schema)s.tmp FROM lines;
+                SELECT * INTO %(results_schema)s.%(adminlevel_11)s FROM my_admin_regions_route_intersect_buffer('%(results_schema)s.tmp', '%(results_schema)s.%(tmp_route_table)s', ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000)) a;
+                DROP TABLE IF EXISTS %(results_schema)s.tmp;""" % args
+                
+                
+            Utils.logMessage('Query:\n' + query)
+            cur.execute(self.cleanQuery(query))
+            con.commit()
+            
+            
+            # Adminlevel 9
+            uri = db.getURI()     
+            uri.setDataSource(args['results_schema'], args['adminlevel_9'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            vl = self.iface.addVectorLayer(uri.uri(), args['adminlevel_9'], db.getProviderName())  
+            if not vl:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+            else:
+                vl.loadNamedStyle(plugin_path + '/assets/styles/administrative/gem.qml')
+                self.projectLayerList['adminlevel_9_psql'] = vl
+                self.projectLayerList['adminlevel_9'] = args['adminlevel_9']
+            
+            # Adminlevel 10
+            uri = db.getURI()     
+            uri.setDataSource(args['results_schema'], args['adminlevel_10'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            vl = self.iface.addVectorLayer(uri.uri(), args['adminlevel_10'], db.getProviderName())  
+            if not vl:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+            else:
+                vl.loadNamedStyle(plugin_path + '/assets/styles/administrative/gem.qml')
+                self.projectLayerList['adminlevel_10_psql'] = vl
+                self.projectLayerList['adminlevel_10'] = args['adminlevel_10']
+            
+            # Adminlevel 11
+            uri = db.getURI()     
+            uri.setDataSource(args['results_schema'], args['adminlevel_11'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            vl = self.iface.addVectorLayer(uri.uri(), args['adminlevel_11'], db.getProviderName())  
+            if not vl:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+            else:
+                vl.loadNamedStyle(plugin_path + '/assets/styles/administrative/gem.qml')
+                self.projectLayerList['adminlevel_11_psql'] = vl
+                self.projectLayerList['adminlevel_11'] = args['adminlevel_11']
+            
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')
+                    
+    def genericDatabaseFunction(self):
+        """Generic function with basic code for every function processing the datbase
+        
+        """
+        
+        print "** genericDatabaseFunction"
+        
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        
+        empties = []
+        for key in args.keys():
+            if not args[key]:
+                empties.append(key)
+        
+        if len(empties) > 0:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                'Following argument is not specified.\n' + ','.join(empties))
+            return
+        
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+            
+            version = Utils.getPgrVersion(con)
+            args['version'] = version
+            if (self.version!=version) :
+                QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                  'versions are different')
+
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            
+            args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            
+            #SQL Query
+            query = """SELECT * FROM %(results_schema)s.%(tmp_route_table)s""" % args
+                
+                
+            Utils.logMessage('Query:\n' + query)
+            cur.execute(self.cleanQuery(query))
+            con.commit()
+            
+            
+            # Specify tmp table in uri
+            uri = db.getURI()     
+            uri.setDataSource(args['results_schema'], args['tmp_route_table'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            
+            
+            # Save layer as junctions
+            vl = self.iface.addVectorLayer(uri.uri(), args['tmp_vertice_table_junctions'], db.getProviderName())  
+            if not vl:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+            vl.loadNamedStyle(plugin_path + '/assets/styles/route.qml')
+            self.projectLayerList['route_table_psql'] = vl
+            self.projectLayerList['tmp_route_table'] = args['tmp_route_table']
+            
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')
+    
+    # --------------------------------------------------------------------------
+    # Helping Functions
+    
+        
+    def moveRouteLayers(self):
+        
+        print "** moveRouteLayers"
+        # Route
+        node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['route_psql'].id())
+        node_clone = node.clone()
+        self.projectLayerPanel['route'].insertChildNode(0,node_clone)
+        self.projectLayerPanel['root'].removeChildNode(node)
+        
+        # Vertices
+        node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['vertice_psql'].id())
+        node_clone = node.clone()
+        node_clone.setVisible(Qt.Unchecked)
+        self.projectLayerPanel['route'].insertChildNode(0,node_clone)
+        self.projectLayerPanel['root'].removeChildNode(node)
+        
+        # Start
+        node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['vertice_start_psql'].id())
+        node_clone = node.clone()
+        node_clone.setExpanded(False)
+        self.projectLayerPanel['route'].insertChildNode(0,node_clone)
+        self.projectLayerPanel['root'].removeChildNode(node)
+        
+        # End
+        node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['vertice_end_psql'].id())
+        node_clone = node.clone()
+        node_clone.setExpanded(False)
+        self.projectLayerPanel['route'].insertChildNode(0,node_clone)
+        self.projectLayerPanel['root'].removeChildNode(node)
+        
+    def moveBufferLayer(self):
+        
+        print "** moveBufferLayer"
+        
+        node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['buffered_network_psql'].id())
+        node_clone = node.clone()
+        self.projectLayerPanel['network_selection'].insertChildNode(0,node_clone)
+        self.projectLayerPanel['root'].removeChildNode(node)
+        self.projectLayerPanel['default'].removeChildNode(node)
+        
+    def moveAnalyzedRoute(self):
+        
+        print "** moveAnalyzedRoute"
+        
+        # Junctions
+        node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['vertice_junctions_psql'].id())
+        node_clone = node.clone()
+        node_clone.setExpanded(False)
+        node_clone.setVisible(Qt.Unchecked)
+        self.projectLayerPanel['route'].insertChildNode(2,node_clone)
+        self.projectLayerPanel['root'].removeChildNode(node)
+        
+        # DPs
+        node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['vertice_dps_psql'].id())
+        node_clone = node.clone()
+        node_clone.setExpanded(False)
+        self.projectLayerPanel['route'].insertChildNode(2,node_clone)
+        self.projectLayerPanel['root'].removeChildNode(node)
+        
+        # Any pnt
+        node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['vertice_any_psql'].id())
+        node_clone = node.clone()
+        node_clone.setExpanded(False)
+        self.projectLayerPanel['route'].insertChildNode(0,node_clone)
+        self.projectLayerPanel['root'].removeChildNode(node)
+        
+    def moveEnvironmentalRegions(self):
+        
+        print "** moveEnvironmentalRegions"
+        
+        # Urban areas
+        node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['urban_areas_psql'].id())
+        node_clone = node.clone()
+        node_clone.setExpanded(False)
+        self.projectLayerPanel['environmental_regions'].insertChildNode(0,node_clone)
+        self.projectLayerPanel['root'].removeChildNode(node)
+        self.projectLayerPanel['default'].removeChildNode(node)
+        
+        # Urban labels
+        node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['urban_labels_psql'].id())
+        node_clone = node.clone()
+        node_clone.setExpanded(False)
+        self.projectLayerPanel['environmental_regions'].insertChildNode(0,node_clone)
+        self.projectLayerPanel['root'].removeChildNode(node)
+        self.projectLayerPanel['default'].removeChildNode(node)        
+        
+        
     def checkDP(self):
         """Check if Vertice is a DP.
         
@@ -980,6 +2039,8 @@ class orientationMapsCreator:
     def getArguments(self, controls):
         args = {}       #'dict'
         
+        if 'comboBoxResultsSchema' in controls:
+            args['results_schema'] = self.dockwidget.comboBoxResultsSchema.currentText()
         if 'comboBoxEdgesSchema' in controls:
             args['edge_schema'] = self.dockwidget.comboBoxEdgesSchema.currentText()
         if 'comboBoxEdgesTable' in controls:
@@ -1032,12 +2093,31 @@ class orientationMapsCreator:
             else:
                 # ',' prefix needed for the SQL query to be generic for queries with/without reverse_cost
                 args['reverse_cost'] = ', ' + args['reverse_cost'] + '::float8 AS reverse_cost'
+        
+        
+        # OPEN NRW
+        if 'comboBoxOpenNRWSchema' in controls:
+            args['open_nrw_schema'] = self.dockwidget.comboBoxOpenNRWSchema.currentText()
+        if 'comboBoxOpenNRWDLM' in controls:
+            args['open_nrw_dlm'] = self.dockwidget.comboBoxOpenNRWDLM.currentText() 
             
+        
+        # OSM
+        if 'comboBoxOSMSchema' in controls:
+            args['osm_schema'] = self.dockwidget.comboBoxOSMSchema.currentText()
+        if 'comboBoxOSMPointsTable' in controls:
+            args['osm_points'] = self.dockwidget.comboBoxOSMPointsTable.currentText() 
+        if 'comboBoxOSMLinesTable' in controls:
+            args['osm_lines'] = self.dockwidget.comboBoxOSMLinesTable.currentText() 
+        if 'comboBoxOSMPolygonsTable' in controls:
+            args['osm_polygons'] = self.dockwidget.comboBoxOSMPolygonsTable.currentText() 
+            
+        
         return args        
     
     
     def setDefaultArguments(self, controls):
-        """Loads default arguments and fills the widget boxes with the lables"""
+        """Loads default arguments and fills the widget boxes with the labels"""
         
         oldReloadMessage = self.reloadMessage
         self.reloadMessage = False
@@ -1050,6 +2130,13 @@ class orientationMapsCreator:
             self.dockwidget.comboBoxDatabase.setCurrentIndex(0)
         self.reloadMessage = oldReloadMessage
 
+        #comboBoxResultsSchema
+        idx = self.dockwidget.comboBoxResultsSchema.findText('tmp')
+        if idx >= 0:
+            self.dockwidget.comboBoxResultsSchema.setCurrentIndex(idx) #reset to previous selection
+        else:
+            self.dockwidget.comboBoxResultsSchema.setCurrentIndex(0)
+            
         #comboBoxEdgesSchema
         idx = self.dockwidget.comboBoxEdgesSchema.findText('nrw_2po')
         if idx >= 0:
@@ -1106,6 +2193,47 @@ class orientationMapsCreator:
         if 'checkBoxHasReverseCost' in controls:
             self.dockwidget.checkBoxHasReverseCost.setChecked(True)
             
+            
+        #comboBoxOpenNRWSchema
+        idx = self.dockwidget.comboBoxOpenNRWSchema.findText('open_nrw')
+        if idx >= 0:
+            self.dockwidget.comboBoxOpenNRWSchema.setCurrentIndex(idx) #reset to previous selection
+        else:
+            self.dockwidget.comboBoxOpenNRWSchema.setCurrentIndex(0)
+            
+        #comboBoxOpenNRWDLM
+        idx = self.dockwidget.comboBoxOpenNRWDLM.findText('dlm250_sie01_f')
+        if idx >= 0:
+            self.dockwidget.comboBoxOpenNRWDLM.setCurrentIndex(idx) #reset to previous selection
+        else:
+            self.dockwidget.comboBoxOpenNRWDLM.setCurrentIndex(0)
+            
+            
+        #OSM
+        idx = self.dockwidget.comboBoxOSMSchema.findText('mland_osm2pgsql')
+        if idx >= 0:
+            self.dockwidget.comboBoxOSMSchema.setCurrentIndex(idx) #reset to previous selection
+        else:
+            self.dockwidget.comboBoxOSMSchema.setCurrentIndex(0)
+            
+        idx = self.dockwidget.comboBoxOSMPointsTable.findText('planet_osm_point')
+        if idx >= 0:
+            self.dockwidget.comboBoxOSMPointsTable.setCurrentIndex(idx) #reset to previous selection
+        else:
+            self.dockwidget.comboBoxOSMPointsTable.setCurrentIndex(0)
+            
+        idx = self.dockwidget.comboBoxOSMLinesTable.findText('planet_osm_line')
+        if idx >= 0:
+            self.dockwidget.comboBoxOSMLinesTable.setCurrentIndex(idx) #reset to previous selection
+        else:
+            self.dockwidget.comboBoxOSMLinesTable.setCurrentIndex(0)
+            
+        idx = self.dockwidget.comboBoxOSMPolygonsTable.findText('planet_osm_polygon')
+        if idx >= 0:
+            self.dockwidget.comboBoxOSMPolygonsTable.setCurrentIndex(idx) #reset to previous selection
+        else:
+            self.dockwidget.comboBoxOSMPolygonsTable.setCurrentIndex(0)
+    
     
     def getLayerName(self, args, letter=''):
         function = self.functions['dijkstra']
@@ -1273,7 +2401,7 @@ class orientationMapsCreator:
                 ST_AsText(%(transform_s)s v.geom %(transform_e)s)
                 FROM %(edge_schema)s.%(vertice_table)s as v, %(edge_schema)s.%(edge_table)s as e
                 WHERE
-                    v.id = e.%(source)s AND e.clazz < %(max_clazz)s
+                    v.id = e.%(source)s AND e.clazz <= %(max_clazz)s
                     ORDER BY v.geom <-> ST_SetSRID(ST_Point(%(x)f, %(y)f), %(srid)d) LIMIT 1""" % args
                     
             #QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % query1)
@@ -1300,7 +2428,7 @@ class orientationMapsCreator:
                 ST_AsText(%(transform_s)s v.geom %(transform_e)s)
                 FROM %(edge_schema)s.%(vertice_table)s as v, %(edge_schema)s.%(edge_table)s as e
                 WHERE
-                    v.id = e.%(target)s AND e.clazz < %(max_clazz)s
+                    v.id = e.%(target)s AND e.clazz <= %(max_clazz)s
                     ORDER BY v.geom <-> ST_SetSRID(ST_Point(%(x)f, %(y)f), %(srid)d) LIMIT 1""" % args
                     
             #QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % query2)
@@ -1366,6 +2494,10 @@ class orientationMapsCreator:
         if idx >= 0:
             self.dockwidget.comboBoxDatabase.setCurrentIndex(idx)
         
+        idx = self.dockwidget.comboBoxResultsSchema.findText(Utils.getStringValue(settings, '/orientationMapsCreator/results_schema', ''))
+        if idx >= 0:
+            self.dockwidget.comboBoxResultsSchema.setCurrentIndex(idx)
+            
         idx = self.dockwidget.comboBoxEdgesSchema.findText(Utils.getStringValue(settings, '/orientationMapsCreator/edge_schema', ''))
         if idx >= 0:
             self.dockwidget.comboBoxEdgesSchema.setCurrentIndex(idx)
@@ -1393,12 +2525,40 @@ class orientationMapsCreator:
         self.dockwidget.checkBoxHasReverseCost.setChecked(Utils.getBoolValue(settings, '/orientationMapsCreator/has_reverse_cost', False))
        
         
+        # OPEN NRW
+        idx = self.dockwidget.comboBoxOpenNRWSchema.findText(Utils.getStringValue(settings, '/orientationMapsCreator/open_nrw_schema', ''))
+        if idx >= 0:
+            self.dockwidget.comboBoxOpenNRWSchema.setCurrentIndex(idx)
+            
+        idx = self.dockwidget.comboBoxOpenNRWDLM.findText(Utils.getStringValue(settings, '/orientationMapsCreator/open_nrw_dlm', ''))
+        if idx >= 0:
+            self.dockwidget.comboBoxOpenNRWDLM.setCurrentIndex(idx)
+            
+            
+        # OSM
+        idx = self.dockwidget.comboBoxOSMSchema.findText(Utils.getStringValue(settings, '/orientationMapsCreator/osm_schema', ''))
+        if idx >= 0:
+            self.dockwidget.comboBoxOSMSchema.setCurrentIndex(idx)
+            
+        idx = self.dockwidget.comboBoxOSMPointsTable.findText(Utils.getStringValue(settings, '/orientationMapsCreator/osm_points', ''))
+        if idx >= 0:
+            self.dockwidget.comboBoxOSMPointsTable.setCurrentIndex(idx)
+            
+        idx = self.dockwidget.comboBoxOSMLinesTable.findText(Utils.getStringValue(settings, '/orientationMapsCreator/osm_lines', ''))
+        if idx >= 0:
+            self.dockwidget.comboBoxOSMLinesTable.setCurrentIndex(idx)
+            
+        idx = self.dockwidget.comboBoxOSMPolygonsTable.findText(Utils.getStringValue(settings, '/orientationMapsCreator/osm_polygons', ''))
+        if idx >= 0:
+            self.dockwidget.comboBoxOSMPolygonsTable.setCurrentIndex(idx)
+            
     def saveSettings(self):
         
         print "** saveSettings"
         
         settings = QSettings()
         settings.setValue('/orientationMapsCreator/Database', self.dockwidget.comboBoxDatabase.currentText())
+        settings.setValue('/orientationMapsCreator/results_schema', self.dockwidget.comboBoxResultsSchema.currentText())
         settings.setValue('/orientationMapsCreator/edge_schema', self.dockwidget.comboBoxEdgesSchema.currentText())
         
         settings.setValue('/orientationMapsCreator/edges_table', self.dockwidget.comboBoxEdgesTable.currentText())
@@ -1417,8 +2577,21 @@ class orientationMapsCreator:
 
         settings.setValue('/orientationMapsCreator/directed', self.dockwidget.checkBoxDirected.isChecked())
         settings.setValue('/orientationMapsCreator/has_reverse_cost', self.dockwidget.checkBoxHasReverseCost.isChecked())
-    #--------------------------------------------------------------------------
-
+        
+        # OPEN NRW
+        settings.setValue('/orientationMapsCreator/open_nrw_schema', self.dockwidget.comboBoxOpenNRWSchema.currentText())
+        settings.setValue('/orientationMapsCreator/open_nrw_dlm', self.dockwidget.comboBoxOpenNRWDLM.currentText())
+        
+        # OSM
+        settings.setValue('/orientationMapsCreator/osm_schema', self.dockwidget.comboBoxOSMSchema.currentText())
+        settings.setValue('/orientationMapsCreator/osm_points', self.dockwidget.comboBoxOSMPointsTable.currentText())
+        settings.setValue('/orientationMapsCreator/osm_lines', self.dockwidget.comboBoxOSMLinesTable.currentText())
+        settings.setValue('/orientationMapsCreator/osm_polygons', self.dockwidget.comboBoxOSMPolygonsTable.currentText())
+        
+        
+    # --------------------------------------------------------------------------
+    # Run
+    
     def run(self):
         """Run method that loads and starts the plugin"""
         

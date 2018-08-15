@@ -40,7 +40,8 @@ class Function(FunctionBase):
     
     def getQuery(self, args):
         #args['where_clause'] = self.whereClause(args['edge_table'], args['geometry'], args['BBOX'])
-        args['where_clause'] = ' '
+        #args['where_clause'] = ' '
+        args['where_clause'] = 'WHERE clazz <=' + args['max_clazz']
         if self.version < 2.1:
             return """
                 SELECT seq, id1 AS _node, id2 AS _edge, cost AS _cost

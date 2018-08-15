@@ -48,9 +48,9 @@
        <property name="geometry">
         <rect>
          <x>0</x>
-         <y>-415</y>
+         <y>-903</y>
          <width>462</width>
-         <height>1416</height>
+         <height>1906</height>
         </rect>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout">
@@ -70,9 +70,30 @@
          <number>0</number>
         </property>
         <item>
+         <widget class="QPushButton" name="btnPrepareProject">
+          <property name="text">
+           <string>Prepare Project</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QPushButton" name="btnLoadDefaults">
           <property name="text">
-           <string>LoadDefaults</string>
+           <string>Load Defaults</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="btnRunAllFunctions">
+          <property name="text">
+           <string>Run All Functions</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="btnClearDatasets">
+          <property name="text">
+           <string>Clear Datasets</string>
           </property>
          </widget>
         </item>
@@ -111,11 +132,30 @@
              </property>
             </widget>
            </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="lblResultsSchema">
+             <property name="text">
+              <string>Results Schema</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QComboBox" name="comboBoxResultsSchema"/>
+           </item>
           </layout>
          </widget>
         </item>
         <item>
          <widget class="QGroupBox" name="groupBoxRoute">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
           <property name="acceptDrops">
            <bool>false</bool>
           </property>
@@ -408,7 +448,7 @@
               <string>Analyze Route</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_9">
-              <item row="0" column="0">
+              <item row="1" column="0">
                <widget class="QPushButton" name="btnAnalyzeRoute">
                 <property name="enabled">
                  <bool>false</bool>
@@ -424,57 +464,18 @@
                 </property>
                </widget>
               </item>
+              <item row="0" column="0">
+               <widget class="QPushButton" name="btnBufferNetwork">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
+                <property name="text">
+                 <string>Buffer Network</string>
+                </property>
+               </widget>
+              </item>
              </layout>
             </widget>
-           </item>
-          </layout>
-         </widget>
-        </item>
-        <item>
-         <widget class="QGroupBox" name="groupBoxOSMData">
-          <property name="title">
-           <string>OSM</string>
-          </property>
-          <layout class="QGridLayout" name="gridLayout_2">
-           <item row="2" column="2">
-            <widget class="QLineEdit" name="lineEditPointsTable_2"/>
-           </item>
-           <item row="1" column="0">
-            <widget class="QLabel" name="lblPointsTable">
-             <property name="text">
-              <string>Points Table</string>
-             </property>
-            </widget>
-           </item>
-           <item row="3" column="2">
-            <widget class="QLineEdit" name="lineEditPolygonsTable"/>
-           </item>
-           <item row="1" column="2">
-            <widget class="QLineEdit" name="lineEditPointsTable"/>
-           </item>
-           <item row="2" column="0">
-            <widget class="QLabel" name="lblPointsTable_2">
-             <property name="text">
-              <string>Lines Table</string>
-             </property>
-            </widget>
-           </item>
-           <item row="3" column="0">
-            <widget class="QLabel" name="lblPolygonsTable">
-             <property name="text">
-              <string>Polygons Table</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="0">
-            <widget class="QLabel" name="lblOSMSchema">
-             <property name="text">
-              <string>Schema</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="2">
-            <widget class="QLineEdit" name="lineEditOSMSchema"/>
            </item>
           </layout>
          </widget>
@@ -484,51 +485,194 @@
           <property name="title">
            <string>OPEN.NRW</string>
           </property>
-          <layout class="QGridLayout" name="gridLayout_3">
-           <item row="1" column="1">
-            <widget class="QLineEdit" name="lineEditDLMTables"/>
-           </item>
-           <item row="1" column="0">
-            <widget class="QLabel" name="lblDLMTables">
-             <property name="text">
-              <string>DLM Table/s</string>
+          <property name="checkable">
+           <bool>true</bool>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_4">
+           <item>
+            <widget class="QGroupBox" name="groupBoxOpenNRWDataset">
+             <property name="title">
+              <string>Dataset</string>
              </property>
+             <layout class="QGridLayout" name="gridLayout_11">
+              <item row="0" column="1">
+               <widget class="QComboBox" name="comboBoxOpenNRWSchema">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="0">
+               <widget class="QLabel" name="lblOpenNRWSchema">
+                <property name="text">
+                 <string>Schema</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QComboBox" name="comboBoxOpenNRWDLM">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="0">
+               <widget class="QLabel" name="lblOpenNRWDLM">
+                <property name="text">
+                 <string>DLM Table</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
             </widget>
            </item>
-           <item row="2" column="0">
-            <widget class="QLabel" name="lblDVGTables">
-             <property name="text">
-              <string>DVG Table/s</string>
+           <item>
+            <widget class="QGroupBox" name="groupBoxOpenNRWCalculate">
+             <property name="title">
+              <string>Calculate</string>
              </property>
+             <layout class="QGridLayout" name="gridLayout_10">
+              <item row="0" column="0">
+               <widget class="QPushButton" name="btnGetEnvironmentalRegions">
+                <property name="text">
+                 <string>Get Environmental Regions</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="0">
+               <widget class="QPushButton" name="btnAddRegionsNetwork">
+                <property name="text">
+                 <string>Add Network within Regions</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="0">
+               <widget class="QPushButton" name="btnGetAdministrativeRegions">
+                <property name="text">
+                 <string>Get Administrative Regions</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
             </widget>
-           </item>
-           <item row="2" column="1">
-            <widget class="QLineEdit" name="lineEditDVGTables"/>
-           </item>
-           <item row="0" column="0">
-            <widget class="QLabel" name="lblOpenNRWSchema">
-             <property name="text">
-              <string>Schema</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="1">
-            <widget class="QLineEdit" name="lineEditOpenNRWSchema"/>
            </item>
           </layout>
          </widget>
         </item>
         <item>
-         <widget class="QGroupBox" name="groupBox">
-          <property name="title">
-           <string>Select Orientation Information</string>
+         <widget class="QGroupBox" name="groupBoxOSMData">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
           </property>
-          <layout class="QGridLayout" name="gridLayout_6">
-           <item row="1" column="0">
-            <widget class="QPushButton" name="btnFkt2">
-             <property name="text">
-              <string>Function 2</string>
+          <property name="title">
+           <string>OSM</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+          </property>
+          <property name="checkable">
+           <bool>true</bool>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_5">
+           <item>
+            <widget class="QGroupBox" name="groupBoxOSMDataset">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
              </property>
+             <property name="title">
+              <string>Dataset</string>
+             </property>
+             <layout class="QGridLayout" name="gridLayout_12">
+              <item row="0" column="1">
+               <widget class="QComboBox" name="comboBoxOSMSchema">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="0">
+               <widget class="QLabel" name="lblOSMPointsTable">
+                <property name="text">
+                 <string>Points Table</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="QComboBox" name="comboBoxOSMLinesTable"/>
+              </item>
+              <item row="2" column="0">
+               <widget class="QLabel" name="lblOSMLinesTable">
+                <property name="text">
+                 <string>Lines Table</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="0">
+               <widget class="QLabel" name="lblOSMPolygonsTable">
+                <property name="text">
+                 <string>Polygons Table</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QComboBox" name="comboBoxOSMPolygonsTable"/>
+              </item>
+              <item row="1" column="1">
+               <widget class="QComboBox" name="comboBoxOSMPointsTable"/>
+              </item>
+              <item row="0" column="0">
+               <widget class="QLabel" name="lblOSMSchema">
+                <property name="text">
+                 <string>Schema</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QGroupBox" name="groupBoxOSMSelectFeatures">
+             <property name="title">
+              <string>Select Features</string>
+             </property>
+             <layout class="QGridLayout" name="gridLayout_6">
+              <item row="2" column="0">
+               <widget class="QPushButton" name="btnSelectOSMPolygons">
+                <property name="text">
+                 <string>Select Polygons</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="0">
+               <widget class="QPushButton" name="btnSelectOSMPoints">
+                <property name="text">
+                 <string>Select Points</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="0">
+               <widget class="QPushButton" name="btnSelectOSMLines">
+                <property name="text">
+                 <string>Select Lines</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
             </widget>
            </item>
           </layout>
@@ -577,12 +721,7 @@
   <tabstop>btnClearPreview</tabstop>
   <tabstop>btnSaveRoute</tabstop>
   <tabstop>btnRemoveRoute</tabstop>
-  <tabstop>lineEditPointsTable</tabstop>
-  <tabstop>lineEditPointsTable_2</tabstop>
-  <tabstop>lineEditPolygonsTable</tabstop>
-  <tabstop>btnFkt2</tabstop>
-  <tabstop>lineEditDLMTables</tabstop>
-  <tabstop>lineEditDVGTables</tabstop>
+  <tabstop>btnSelectOSMPolygons</tabstop>
  </tabstops>
  <resources/>
  <connections>
@@ -663,6 +802,70 @@
     <hint type="destinationlabel">
      <x>210</x>
      <y>925</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>groupBoxOpenNRWData</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>groupBoxOpenNRWDataset</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>234</x>
+     <y>575</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>234</x>
+     <y>528</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>groupBoxOpenNRWData</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>groupBoxOpenNRWCalculate</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>234</x>
+     <y>575</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>234</x>
+     <y>648</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>groupBoxOSMData</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>groupBoxOSMDataset</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>234</x>
+     <y>792</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>234</x>
+     <y>724</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>groupBoxOSMData</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>groupBoxOSMSelectFeatures</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>234</x>
+     <y>792</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>234</x>
+     <y>902</y>
     </hint>
    </hints>
   </connection>
