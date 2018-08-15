@@ -1805,6 +1805,8 @@ class orientationMapsCreator:
                 vl.loadNamedStyle(plugin_path + '/assets/styles/administrative/gem.qml')
                 self.projectLayerList['adminlevel_11_psql'] = vl
                 self.projectLayerList['adminlevel_11'] = args['adminlevel_11']
+                
+            self.moveAdministrativeRegions()
             
             
         except psycopg2.DatabaseError, e:
@@ -1995,6 +1997,37 @@ class orientationMapsCreator:
         self.projectLayerPanel['environmental_regions'].insertChildNode(0,node_clone)
         self.projectLayerPanel['root'].removeChildNode(node)
         self.projectLayerPanel['default'].removeChildNode(node)        
+        
+    def moveAdministrativeRegions(self):
+        
+        print "** moveEnvironmentalRegions"
+        
+        # Adminlevel 9
+        if 'adminlevel_9_psql' in self.projectLayerList.keys():
+            node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['adminlevel_9_psql'].id())
+            node_clone = node.clone()
+            node_clone.setExpanded(False)
+            self.projectLayerPanel['administrative_regions'].insertChildNode(0,node_clone)
+            self.projectLayerPanel['root'].removeChildNode(node)
+            self.projectLayerPanel['default'].removeChildNode(node)
+        
+        # Adminlevel 10
+        if 'adminlevel_10_psql' in self.projectLayerList.keys():
+            node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['adminlevel_10_psql'].id())
+            node_clone = node.clone()
+            node_clone.setExpanded(False)
+            self.projectLayerPanel['administrative_regions'].insertChildNode(0,node_clone)
+            self.projectLayerPanel['root'].removeChildNode(node)
+            self.projectLayerPanel['default'].removeChildNode(node)
+        
+        # Adminlevel 11
+        if 'adminlevel_11_psql' in self.projectLayerList.keys():
+            node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['adminlevel_11_psql'].id())
+            node_clone = node.clone()
+            node_clone.setExpanded(False)
+            self.projectLayerPanel['administrative_regions'].insertChildNode(0,node_clone)
+            self.projectLayerPanel['root'].removeChildNode(node)
+            self.projectLayerPanel['default'].removeChildNode(node)
         
         
     def checkDP(self):
