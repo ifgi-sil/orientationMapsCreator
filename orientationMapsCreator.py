@@ -16,6 +16,7 @@ plugin_path = os.path.dirname(os.path.realpath(__file__)) # Potentially fix subd
 import psycopg2     #DatabaseError
 import re           #RegularExpressions
 import glob
+import timeit
 
 import sys
 sys.path.append('/usr/share/qgis/python/plugins')   #Import python processing tools
@@ -797,12 +798,17 @@ class orientationMapsCreator:
 
         print "** runAllFunctions"
         
+        start = timeit.default_timer()
+        
         self.dockwidget.btnSaveRoute.click()
         self.dockwidget.btnBufferNetwork.click()
         self.dockwidget.btnAnalyzeRoute.click() 
         self.dockwidget.btnGetEnvironmentalRegions.click() 
         self.dockwidget.btnAddRegionsNetwork.click() 
-            
+        
+        stop = timeit.default_timer()
+        
+        print('runAllFunctions time: ', stop - start)  
         
     def clearDatasets(self):
         """Clear all datasets from previous calculations.
@@ -908,6 +914,7 @@ class orientationMapsCreator:
         """
         
         print "** saveRoute"
+        start = timeit.default_timer()
         
         #Prepare project if not yet done
         if not 'root' in self.projectLayerPanel.keys():
@@ -1034,7 +1041,10 @@ class orientationMapsCreator:
                 except:
                     QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
                         'server closed the connection unexpectedly')
-                    
+        
+        stop = timeit.default_timer()
+        print('saveRoute time: ', stop - start)
+        
         self.saveRoutePoints(args)
         
     
@@ -1044,6 +1054,8 @@ class orientationMapsCreator:
         """
         
         print "** saveRoutePoints"
+        
+        start = timeit.default_timer()
         
         #Check if route layer exists in projectLayerList
         if not 'tmp_route_table' in self.projectLayerList:
@@ -1071,7 +1083,7 @@ class orientationMapsCreator:
             
             
             #Save route points to separate table
-            query_create_vertices = """CREATE TABLE %(results_schema)s.%(tmp_vertice_table)s AS
+            query = """CREATE TABLE %(results_schema)s.%(tmp_vertice_table)s AS
                 (SELECT route.seq-1 as seq, vertices.*
                 FROM %(results_schema)s.%(tmp_route_table)s as route, %(edge_schema)s.%(vertice_table)s as vertices
                 WHERE route._node = vertices.id
@@ -1079,10 +1091,10 @@ class orientationMapsCreator:
                 SELECT route.seq as seq, vertices.* 
                 FROM (SELECT * FROM %(results_schema)s.%(tmp_route_table)s ORDER BY seq DESC LIMIT 1) as route, %(edge_schema)s.%(vertice_table)s as vertices 
                 WHERE route._end_vid = vertices.id)""" % args
-            #QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Geometry Query:\n' + query_create_vertices)
+            #QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Geometry Query:\n' + query)
             
-            Utils.logMessage('SaveRoutePoints:\n' + query_create_vertices)
-            cur.execute(self.cleanQuery(query_create_vertices))
+            Utils.logMessage('SaveRoutePoints:\n' + query)
+            cur.execute(self.cleanQuery(query))
             con.commit()
             
             # Create Index
@@ -1158,7 +1170,9 @@ class orientationMapsCreator:
                 except:
                     QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
                         'server closed the connection unexpectedly')
-                    
+        
+        stop = timeit.default_timer()
+        print('saveRoutePoints time: ', stop - start)
     
     def removeRoute(self):
         """Remove Route from layers and file system.
@@ -1296,6 +1310,8 @@ class orientationMapsCreator:
         
         print "** bufferNetwork"
         
+        start = timeit.default_timer()
+        
         function = self.functions['dijkstra']
         args = self.getArguments(function.getControlNames(self.version))
         
@@ -1330,13 +1346,15 @@ class orientationMapsCreator:
             
             
             #Buffer network with length of route
-            query_buffer_network = """DROP TABLE IF EXISTS %(results_schema)s.%(edge_table_buffered)s;
+            query = """DROP TABLE IF EXISTS %(results_schema)s.%(edge_table_buffered)s;
                 SELECT * 
                 INTO %(results_schema)s.%(edge_table_buffered)s
                 FROM my_route_length_buffer('%(edge_schema)s.%(edge_table)s', '%(results_schema)s.%(tmp_route_table)s', 1)""" % args
             
-            Utils.logMessage('Calculate Angles of Route Points:\n' + query_buffer_network)
-            cur.execute(self.cleanQuery(query_buffer_network))
+            print "bufferNetwork query: " + query
+            
+            Utils.logMessage('Calculate Angles of Route Points:\n' + query)
+            cur.execute(self.cleanQuery(query))
             con.commit()
             
             # Create Index
@@ -1377,6 +1395,9 @@ class orientationMapsCreator:
                     QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
                         'server closed the connection unexpectedly')
         
+        stop = timeit.default_timer()
+        print('bufferNetwork time: ', stop - start)
+        
         self.dockwidget.btnAnalyzeRoute.setEnabled(True)
         
     
@@ -1397,6 +1418,8 @@ class orientationMapsCreator:
         
         print "** analyzeRoute"
         
+        start = timeit.default_timer()
+                
         function = self.functions['dijkstra']
         args = self.getArguments(function.getControlNames(self.version))
         
@@ -1447,20 +1470,24 @@ class orientationMapsCreator:
                 ) b
                 WHERE a.id = b.id""" % args
             
+            print "analyzeRoute query_calculate_angles: " + query_calculate_angles
+            
             Utils.logMessage('Calculate Angles of Route Points:\n' + query_calculate_angles)
             cur.execute(self.cleanQuery(query_calculate_angles))
             con.commit()
             
             
             #Calculate angeles of route vertices
-            query_analyze_dps = """ALTER TABLE %(results_schema)s.%(tmp_vertice_table)s ADD COLUMN dp_type integer;
-                UPDATE %(results_schema)s.%(tmp_vertice_table)s a SET dp_type=b.dp_type
+            query_analyze_dps = """ALTER TABLE %(results_schema)s.%(tmp_vertice_table)s ADD COLUMN angle_lin_lout numeric;
+                ALTER TABLE %(results_schema)s.%(tmp_vertice_table)s ADD COLUMN dp_type integer;
+                UPDATE %(results_schema)s.%(tmp_vertice_table)s a SET angle_lin_lout=b.angle, dp_type=b.dp_type
                 FROM (
                     SELECT * FROM my_route_get_dp('%(results_schema)s.%(edge_table_buffered)s', '%(results_schema)s.%(tmp_route_table)s', '%(results_schema)s.%(tmp_vertice_table)s', 30)
                 ) b
                 WHERE a.id = b.id""" % args
                 
-                
+            print "analyzeRoute query_analyze_dps: " + query_analyze_dps
+            
             Utils.logMessage('Analyze DPs of Route Points:\n' + query_analyze_dps)
             cur.execute(self.cleanQuery(query_analyze_dps))
             con.commit()
@@ -1521,6 +1548,9 @@ class orientationMapsCreator:
                     QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
                         'server closed the connection unexpectedly')
 
+        stop = timeit.default_timer()
+        print('analyzeRoute time: ', stop - start)
+        
 
     def getEnvironmentalRegions(self):
         """Retrieve urban areas from the OpenNRW dataset within sepcified buffer around the route.
@@ -1529,6 +1559,8 @@ class orientationMapsCreator:
         
         print "** getEnvironmentalRegions"
         
+        start = timeit.default_timer()
+                
         function = self.functions['dijkstra']
         args = self.getArguments(function.getControlNames(self.version))
         
@@ -1569,7 +1601,7 @@ class orientationMapsCreator:
                 FROM my_regions_route_intersect_buffer('%(open_nrw_schema)s.%(open_nrw_dlm)s', '%(results_schema)s.%(tmp_route_table)s', 
                     ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000));
                 ALTER TABLE %(results_schema)s.%(urban_areas)s ADD COLUMN shape_length numeric, ADD COLUMN shape_area numeric;
-                UPDATE %(results_schema)s.%(urban_areas)s SET shape_length=ST_Perimeter(ST_Transform(geom,32632)), shape_area=ST_Area(ST_Transform(geom,32632));
+                UPDATE %(results_schema)s.%(urban_areas)s SET shape_length=ST_Perimeter(geom), shape_area=ST_Area(geom);
                 UPDATE %(results_schema)s.%(urban_areas)s as t SET geom = a.geom FROM
                     (SELECT id, ST_Collect(ST_MakePolygon(geom)) As geom
                     FROM (SELECT id, ST_ExteriorRing((ST_Dump(geom)).geom) As geom FROM %(results_schema)s.%(urban_areas)s) as s
@@ -1577,7 +1609,8 @@ class orientationMapsCreator:
                     WHERE t.id = a.id;""" % args
                             
             #QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(),query)
-
+            print "getEnvironmentalRegions query: " + query
+            
             Utils.logMessage('Query:\n' + query)
             cur.execute(self.cleanQuery(query))
             con.commit()
@@ -1623,6 +1656,9 @@ class orientationMapsCreator:
                     QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
                         'server closed the connection unexpectedly')
         
+        stop = timeit.default_timer()
+        print('getEnvironmentalRegions time: ', stop - start)
+        
     
     def addRegionsNetwork(self):
         """Merge network within the regions into the network dataset.
@@ -1631,6 +1667,8 @@ class orientationMapsCreator:
         
         print "** addRegionsNetwork"
         
+        start = timeit.default_timer()
+                
         function = self.functions['dijkstra']
         args = self.getArguments(function.getControlNames(self.version))
         
@@ -1668,10 +1706,11 @@ class orientationMapsCreator:
             #SQL Query
             query = """INSERT INTO %(results_schema)s.%(edge_table_buffered)s
                 SELECT s.* FROM
-                    (SELECT * FROM my_route_length_buffer('%(edge_schema)s.%(edge_table)s', '%(results_schema)s.%(tmp_route_table)s', 0.25)) s, %(results_schema)s.%(urban_areas)s r
-                    WHERE ST_Intersects(ST_Transform(s.geom, 32632), ST_Transform(r.geom, 32632)) AND 
+                    %(edge_schema)s.%(edge_table)s s, %(results_schema)s.%(urban_areas)s r
+                    WHERE ST_Intersects(ST_Transform(s.geom, 25832), r.geom) AND 
                         s.id not in (SELECT id FROM %(results_schema)s.%(edge_table_buffered)s)""" % args
                 
+            print "addRegionsNetwork query: " + query
                 
             Utils.logMessage('Query:\n' + query)
             cur.execute(self.cleanQuery(query))
@@ -1700,6 +1739,9 @@ class orientationMapsCreator:
                     QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
                         'server closed the connection unexpectedly')
         
+        stop = timeit.default_timer()
+        print('addRegionsNetwork time: ', stop - start)
+
     
     def getAdministrativeRegions(self):
         """getAdministrativeRegions
@@ -1707,6 +1749,8 @@ class orientationMapsCreator:
         """
         
         print "** getAdministrativeRegions"
+        
+        start = timeit.default_timer()
         
         function = self.functions['dijkstra']
         args = self.getArguments(function.getControlNames(self.version))
@@ -1767,7 +1811,8 @@ class orientationMapsCreator:
                 SELECT * INTO %(results_schema)s.%(adminlevel_11)s FROM my_admin_regions_route_intersect_buffer('%(results_schema)s.tmp', '%(results_schema)s.%(tmp_route_table)s', ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000)) a;
                 DROP TABLE IF EXISTS %(results_schema)s.tmp;""" % args
                 
-                
+            print "getAdministrativeRegions query: " + query
+            
             Utils.logMessage('Query:\n' + query)
             cur.execute(self.cleanQuery(query))
             con.commit()
@@ -1827,13 +1872,19 @@ class orientationMapsCreator:
                 except:
                     QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
                         'server closed the connection unexpectedly')
-                    
+                  
+        stop = timeit.default_timer()
+        print('getAdministrativeRegions time: ', stop - start)
+
+  
     def genericDatabaseFunction(self):
         """Generic function with basic code for every function processing the datbase
         
         """
         
         print "** genericDatabaseFunction"
+        
+        start = timeit.default_timer()
         
         function = self.functions['dijkstra']
         args = self.getArguments(function.getControlNames(self.version))
@@ -1907,7 +1958,11 @@ class orientationMapsCreator:
                 except:
                     QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
                         'server closed the connection unexpectedly')
-    
+        
+        stop = timeit.default_timer()
+        print('genericDatabaseFunction time: ', stop - start)
+
+
     # --------------------------------------------------------------------------
     # Helping Functions
     
