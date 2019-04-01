@@ -1,75 +1,92 @@
 <!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
-<qgis version="2.18.22" simplifyAlgorithm="0" minimumScale="0" maximumScale="1e+08" simplifyDrawingHints="1" minLabelScale="0" maxLabelScale="1e+08" simplifyDrawingTol="1" readOnly="0" simplifyMaxScale="1" hasScaleBasedVisibilityFlag="0" simplifyLocal="1" scaleBasedLabelVisibilityFlag="0">
+<qgis version="2.18.22" simplifyAlgorithm="0" minimumScale="0" maximumScale="1e+08" simplifyDrawingHints="0" minLabelScale="0" maxLabelScale="1e+08" simplifyDrawingTol="1" readOnly="0" simplifyMaxScale="1" hasScaleBasedVisibilityFlag="0" simplifyLocal="1" scaleBasedLabelVisibilityFlag="0">
   <edittypes>
+    <edittype widgetv2type="TextEdit" name="seq">
+      <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
+    </edittype>
     <edittype widgetv2type="TextEdit" name="id">
       <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
     </edittype>
-    <edittype widgetv2type="TextEdit" name="art">
+    <edittype widgetv2type="TextEdit" name="cnt">
       <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
     </edittype>
-    <edittype widgetv2type="TextEdit" name="gn">
+    <edittype widgetv2type="TextEdit" name="chk">
       <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
     </edittype>
-    <edittype widgetv2type="TextEdit" name="kn">
+    <edittype widgetv2type="TextEdit" name="ein">
       <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
     </edittype>
-    <edittype widgetv2type="TextEdit" name="stand">
+    <edittype widgetv2type="TextEdit" name="eout">
+      <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
+    </edittype>
+    <edittype widgetv2type="TextEdit" name="angle">
+      <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
+    </edittype>
+    <edittype widgetv2type="TextEdit" name="angle_lin_lout">
+      <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
+    </edittype>
+    <edittype widgetv2type="TextEdit" name="dp_type">
+      <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
+    </edittype>
+    <edittype widgetv2type="TextEdit" name="dp">
       <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
     </edittype>
   </edittypes>
-  <renderer-v2 forceraster="0" symbollevels="0" type="singleSymbol" enableorderby="0">
+  <renderer-v2 forceraster="0" symbollevels="0" type="RuleRenderer" enableorderby="0">
+    <rules key="{a5bb4873-54e4-4ff9-ae1a-ce87640a2334}">
+      <rule filter=" &quot;dp&quot; >= 1 AND &quot;dp&quot; &lt;= 5" key="{a5aede42-5333-42b5-9294-d8b987a0375a}" symbol="0" label="junction"/>
+      <rule checkstate="0" key="{16f5f848-0662-47c5-a312-b35b3f0aadfb}" symbol="1"/>
+    </rules>
     <symbols>
-      <symbol alpha="1" clip_to_extent="1" type="fill" name="0">
-        <layer pass="0" class="SimpleLine" locked="0">
-          <prop k="capstyle" v="round"/>
-          <prop k="customdash" v="5;2"/>
-          <prop k="customdash_map_unit_scale" v="0,0,0,0,0,0"/>
-          <prop k="customdash_unit" v="MM"/>
-          <prop k="draw_inside_polygon" v="0"/>
+      <symbol alpha="1" clip_to_extent="1" type="marker" name="0">
+        <layer pass="0" class="SimpleMarker" locked="0">
+          <prop k="angle" v="0"/>
+          <prop k="color" v="255,255,255,255"/>
+          <prop k="horizontal_anchor_point" v="1"/>
           <prop k="joinstyle" v="bevel"/>
-          <prop k="line_color" v="255,191,191,255"/>
-          <prop k="line_style" v="solid"/>
-          <prop k="line_width" v="2"/>
-          <prop k="line_width_unit" v="MM"/>
-          <prop k="offset" v="-0.5"/>
-          <prop k="offset_dd_active" v="0"/>
-          <prop k="offset_dd_expression" v=""/>
-          <prop k="offset_dd_field" v=""/>
-          <prop k="offset_dd_useexpr" v="0"/>
+          <prop k="name" v="circle"/>
+          <prop k="offset" v="0,0"/>
           <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
           <prop k="offset_unit" v="MM"/>
-          <prop k="use_custom_dash" v="0"/>
-          <prop k="width_dd_active" v="0"/>
-          <prop k="width_dd_expression" v=""/>
-          <prop k="width_dd_field" v=""/>
-          <prop k="width_dd_useexpr" v="0"/>
-          <prop k="width_map_unit_scale" v="0,0,0,0,0,0"/>
+          <prop k="outline_color" v="0,0,0,255"/>
+          <prop k="outline_style" v="solid"/>
+          <prop k="outline_width" v="0"/>
+          <prop k="outline_width_map_unit_scale" v="0,0,0,0,0,0"/>
+          <prop k="outline_width_unit" v="MM"/>
+          <prop k="scale_method" v="diameter"/>
+          <prop k="size" v="1"/>
+          <prop k="size_dd_active" v="1"/>
+          <prop k="size_dd_expression" v="CASE WHEN  $scale >20000 THEN 1&#xa;  WHEN $scale &lt;20000 THEN 16000/$scale+0.2&#xa;END"/>
+          <prop k="size_dd_field" v=""/>
+          <prop k="size_dd_useexpr" v="1"/>
+          <prop k="size_map_unit_scale" v="0,0,0,0,0,0"/>
+          <prop k="size_unit" v="MM"/>
+          <prop k="vertical_anchor_point" v="1"/>
         </layer>
-        <layer pass="0" class="SimpleLine" locked="0">
-          <prop k="capstyle" v="round"/>
-          <prop k="customdash" v="5;2"/>
-          <prop k="customdash_map_unit_scale" v="0,0,0,0,0,0"/>
-          <prop k="customdash_unit" v="MM"/>
-          <prop k="draw_inside_polygon" v="0"/>
+      </symbol>
+      <symbol alpha="1" clip_to_extent="1" type="marker" name="1">
+        <layer pass="0" class="SimpleMarker" locked="0">
+          <prop k="angle" v="0"/>
+          <prop k="color" v="201,115,135,255"/>
+          <prop k="horizontal_anchor_point" v="1"/>
           <prop k="joinstyle" v="bevel"/>
-          <prop k="line_color" v="255,0,0,255"/>
-          <prop k="line_style" v="solid"/>
-          <prop k="line_width" v="0.5"/>
-          <prop k="line_width_unit" v="MM"/>
-          <prop k="offset" v="0"/>
+          <prop k="name" v="circle"/>
+          <prop k="offset" v="0,0"/>
           <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
           <prop k="offset_unit" v="MM"/>
-          <prop k="use_custom_dash" v="0"/>
-          <prop k="width_dd_active" v="0"/>
-          <prop k="width_dd_expression" v=""/>
-          <prop k="width_dd_field" v=""/>
-          <prop k="width_dd_useexpr" v="0"/>
-          <prop k="width_map_unit_scale" v="0,0,0,0,0,0"/>
+          <prop k="outline_color" v="0,0,0,255"/>
+          <prop k="outline_style" v="solid"/>
+          <prop k="outline_width" v="0"/>
+          <prop k="outline_width_map_unit_scale" v="0,0,0,0,0,0"/>
+          <prop k="outline_width_unit" v="MM"/>
+          <prop k="scale_method" v="diameter"/>
+          <prop k="size" v="2"/>
+          <prop k="size_map_unit_scale" v="0,0,0,0,0,0"/>
+          <prop k="size_unit" v="MM"/>
+          <prop k="vertical_anchor_point" v="1"/>
         </layer>
       </symbol>
     </symbols>
-    <rotation/>
-    <sizescale scalemethod="diameter"/>
   </renderer-v2>
   <labeling type="simple"/>
   <customproperties>
@@ -127,7 +144,7 @@
     <property key="labeling/maxNumLabels" value="2000"/>
     <property key="labeling/mergeLines" value="false"/>
     <property key="labeling/minFeatureSize" value="0"/>
-    <property key="labeling/multilineAlign" value="4294967295"/>
+    <property key="labeling/multilineAlign" value="3"/>
     <property key="labeling/multilineHeight" value="1"/>
     <property key="labeling/namedStyle" value="Bold Italic"/>
     <property key="labeling/obstacle" value="true"/>
@@ -135,7 +152,7 @@
     <property key="labeling/obstacleType" value="0"/>
     <property key="labeling/offsetType" value="0"/>
     <property key="labeling/placeDirectionSymbol" value="0"/>
-    <property key="labeling/placement" value="1"/>
+    <property key="labeling/placement" value="6"/>
     <property key="labeling/placementFlags" value="10"/>
     <property key="labeling/plussign" value="false"/>
     <property key="labeling/predefinedPositionOrder" value="TR,TL,BR,BL,R,L,TSR,BSR"/>
@@ -270,23 +287,33 @@
   <DiagramLayerSettings yPosColumn="-1" showColumn="-1" linePlacementFlags="10" placement="0" dist="0" xPosColumn="-1" priority="0" obstacle="0" zIndex="0" showAll="1"/>
   <annotationform>.</annotationform>
   <aliases>
-    <alias field="id" index="0" name=""/>
-    <alias field="art" index="1" name=""/>
-    <alias field="gn" index="2" name=""/>
-    <alias field="kn" index="3" name=""/>
-    <alias field="stand" index="4" name=""/>
+    <alias field="seq" index="0" name=""/>
+    <alias field="id" index="1" name=""/>
+    <alias field="cnt" index="2" name=""/>
+    <alias field="chk" index="3" name=""/>
+    <alias field="ein" index="4" name=""/>
+    <alias field="eout" index="5" name=""/>
+    <alias field="angle" index="6" name=""/>
+    <alias field="angle_lin_lout" index="7" name=""/>
+    <alias field="dp_type" index="8" name=""/>
+    <alias field="dp" index="9" name=""/>
   </aliases>
   <excludeAttributesWMS/>
   <excludeAttributesWFS/>
   <attributeactions default="-1"/>
   <attributetableconfig actionWidgetStyle="dropDown" sortExpression="" sortOrder="0">
     <columns>
+      <column width="-1" hidden="0" type="field" name="seq"/>
       <column width="-1" hidden="0" type="field" name="id"/>
-      <column width="-1" hidden="0" type="field" name="art"/>
-      <column width="-1" hidden="0" type="field" name="gn"/>
-      <column width="-1" hidden="0" type="field" name="kn"/>
-      <column width="-1" hidden="0" type="field" name="stand"/>
+      <column width="-1" hidden="0" type="field" name="cnt"/>
+      <column width="-1" hidden="0" type="field" name="chk"/>
+      <column width="-1" hidden="0" type="field" name="ein"/>
+      <column width="-1" hidden="0" type="field" name="eout"/>
+      <column width="-1" hidden="0" type="field" name="dp_type"/>
       <column width="-1" hidden="1" type="actions"/>
+      <column width="-1" hidden="0" type="field" name="angle"/>
+      <column width="-1" hidden="0" type="field" name="angle_lin_lout"/>
+      <column width="-1" hidden="0" type="field" name="dp"/>
     </columns>
   </attributetableconfig>
   <editform>.</editform>
@@ -318,12 +345,17 @@ def my_form_open(dialog, layer, feature):
     <fieldstyles/>
   </conditionalstyles>
   <defaults>
+    <default field="seq" expression=""/>
     <default field="id" expression=""/>
-    <default field="art" expression=""/>
-    <default field="gn" expression=""/>
-    <default field="kn" expression=""/>
-    <default field="stand" expression=""/>
+    <default field="cnt" expression=""/>
+    <default field="chk" expression=""/>
+    <default field="ein" expression=""/>
+    <default field="eout" expression=""/>
+    <default field="angle" expression=""/>
+    <default field="angle_lin_lout" expression=""/>
+    <default field="dp_type" expression=""/>
+    <default field="dp" expression=""/>
   </defaults>
-  <previewExpression></previewExpression>
-  <layerGeometryType>2</layerGeometryType>
+  <previewExpression>COALESCE( "id", '&lt;NULL>' )</previewExpression>
+  <layerGeometryType>0</layerGeometryType>
 </qgis>
