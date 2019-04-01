@@ -12,6 +12,7 @@ from orientationMapsCreator_dockwidget import orientationMapsCreatorDockWidget
 import orientationMapsCreator_utils as Utils
 import dbConnection
 import os
+from __builtin__ import str
 plugin_path = os.path.dirname(os.path.realpath(__file__)) # Potentially fix subdirectories
 import psycopg2     #DatabaseError
 import re           #RegularExpressions
@@ -1342,8 +1343,7 @@ class orientationMapsCreator:
             srid, geomType = Utils.getSridAndGeomType(con, args)
             
             args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
-            args['edge_table_buffered'] = args['edge_table'] + "_buffered"
-            
+            args['edge_table_buffered'] = args['edge_table'] + "_buffered"         
             
             #Buffer network with length of route
             query = """DROP TABLE IF EXISTS %(results_schema)s.%(edge_table_buffered)s;
@@ -1378,8 +1378,16 @@ class orientationMapsCreator:
             
         except psycopg2.DatabaseError, e:
             print "** Database Error"
-            QApplication.restoreOverrideCursor()
-            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            if str(e).__contains__("my_route_length_buffer"):
+                print "function does not exist error"
+                #create function
+                self.createMissingFkt("my_route_length_buffer")
+                
+                #run bufferNetwork() again
+                self.dockwidget.btnBufferNetwork.click()
+            else:  
+                QApplication.restoreOverrideCursor()
+                QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
             
         except SystemError, e:
             print "** SystemError Error"
@@ -1455,7 +1463,7 @@ class orientationMapsCreator:
             args['edge_table_buffered'] = self.projectLayerList['edge_table_buffered']
 
             
-            #Calculate angeles of route vertices
+            #Calculate angles of route vertices
             query_calculate_angles = """ALTER TABLE %(results_schema)s.%(tmp_vertice_table)s
                 ADD COLUMN angle numeric;
                 UPDATE %(results_schema)s.%(tmp_vertice_table)s a SET angle=new_angle
@@ -1475,7 +1483,7 @@ class orientationMapsCreator:
             con.commit()
             
             
-            #Calculate angeles of route vertices
+            #Calculate angles of route vertices
             query_analyze_dps = """ALTER TABLE %(results_schema)s.%(tmp_vertice_table)s ADD COLUMN angle_lin_lout numeric;
                 ALTER TABLE %(results_schema)s.%(tmp_vertice_table)s ADD COLUMN dp_type integer;
                 UPDATE %(results_schema)s.%(tmp_vertice_table)s a SET angle_lin_lout=b.angle, dp_type=b.dp_type
@@ -1529,8 +1537,17 @@ class orientationMapsCreator:
             
         except psycopg2.DatabaseError, e:
             print "** Database Error"
-            QApplication.restoreOverrideCursor()
-            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            if str(e).__contains__("my_route_get_dp"):
+                print "function does not exist error"
+                #create function
+                self.createMissingFkt("my_route_get_dp")
+                
+                #run bufferNetwork() again
+                self.dockwidget.btnAnalyzeRoute.click()
+            else:  
+                QApplication.restoreOverrideCursor()
+                QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+                
             
         except SystemError, e:
             print "** SystemError Error"
@@ -1637,8 +1654,16 @@ class orientationMapsCreator:
             
         except psycopg2.DatabaseError, e:
             print "** Database Error"
-            QApplication.restoreOverrideCursor()
-            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            if str(e).__contains__("my_regions_route_intersect_buffer"):
+                print "function does not exist error"
+                #create function
+                self.createMissingFkt("my_regions_route_intersect_buffer")
+                
+                #run bufferNetwork() again
+                self.dockwidget.btnGetEnvironmentalRegions.click()
+            else:  
+                QApplication.restoreOverrideCursor()
+                QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
             
         except SystemError, e:
             print "** SystemError Error"
@@ -1854,8 +1879,16 @@ class orientationMapsCreator:
             
         except psycopg2.DatabaseError, e:
             print "** Database Error"
-            QApplication.restoreOverrideCursor()
-            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            if str(e).__contains__("my_admin_regions_route_intersect_buffer"):
+                print "function does not exist error"
+                #create function
+                self.createMissingFkt("my_admin_regions_route_intersect_buffer")
+                
+                #run bufferNetwork() again
+                self.dockwidget.btnGetAdministrativeRegions.click()
+            else:  
+                QApplication.restoreOverrideCursor()
+                QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
             
         except SystemError, e:
             print "** SystemError Error"
@@ -1959,6 +1992,53 @@ class orientationMapsCreator:
         
         stop = timeit.default_timer()
         print('genericDatabaseFunction time: ', stop - start)
+        
+        
+    def createMissingFkt(self, fkt):
+        """Create function not existing sql function.
+        
+        """
+        
+        print "** createFktBufferNetwork"
+        
+        start = timeit.default_timer()
+        
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+            
+            query = Utils.getMissingFktQuery(fkt)
+            
+            print "createMissingFkt: " + query
+            
+            Utils.logMessage('create missing function:\n' + query)
+            cur.execute(self.cleanQuery(query))
+            con.commit()          
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')
+        
+        stop = timeit.default_timer()
+        print('createFktBufferNetwork time: ', stop - start)
 
 
     # --------------------------------------------------------------------------

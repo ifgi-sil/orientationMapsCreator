@@ -6,6 +6,10 @@ from qgis.core import *
 from qgis.gui import *
 import psycopg2
 import sip
+import os
+import io
+import chardet
+import codecs
 
 
 # def getSridAndGeomType(con, table, geometry):
@@ -143,4 +147,43 @@ def getPgrVersion(con):
         return 0;
     except SystemError, e:
         return 0
+    
+def readFile(rel_path):
+    
+    plugin_dir = os.path.dirname(__file__)
+    rel_path = os.path.join(plugin_dir, rel_path)
+    
+    #make sure to load file without BOM mark
+    bytes = min(32, os.path.getsize(rel_path))
+    raw = open(rel_path, 'rb').read(bytes)
+
+    if raw.startswith(codecs.BOM_UTF8):
+        encoding = 'utf-8-sig'
+    else:
+        result = chardet.detect(raw)
+        encoding = result['encoding']
+    
+    filehandle = io.open(rel_path, encoding=encoding)
+    file = filehandle.read()
+    filehandle.close()
+    
+    return file
+
+def getMissingFktQuery(fkt):    
+    print "** getMissingFkt"
+    
+    if (fkt == "my_route_length_buffer"):
+        sqlFile = readFile("assets/sql_functions/my_route_length_buffer.sql")
+    elif (fkt == "my_route_get_dp"):
+        sqlFile = readFile("assets/sql_functions/my_route_get_dp.sql")
+    elif (fkt == "my_regions_route_intersect_buffer"):
+        sqlFile = readFile("assets/sql_functions/my_regions_route_intersect_buffer.sql")
+    elif (fkt == "my_admin_regions_route_intersect_buffer"):
+        sqlFile = readFile("assets/sql_functions/my_admin_regions_route_intersect_buffer.sql")
+    else:
+        sqlFile = ""
+    
+    return sqlFile
+
+
 
