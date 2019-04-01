@@ -145,7 +145,7 @@
   </edittypes>
   <renderer-v2 forceraster="0" symbollevels="0" type="RuleRenderer" enableorderby="0">
     <rules key="{2439e0f5-d5a7-45a4-b5c6-6e7c84f875c3}">
-      <rule scalemaxdenom="100000" key="{c23779b1-aa53-4c35-b9da-753b59d5f3c3}" scalemindenom="1" label="Zoom 1">
+      <rule scalemaxdenom="100000" key="{c23779b1-aa53-4c35-b9da-753b59d5f3c3}" scalemindenom="1" label="Zoom 1-100K">
         <rule filter="&quot;highway&quot; is not null" key="{4fabebec-ebd2-4669-9e44-29ef05dee6c0}" label="Roads">
           <rule filter="&quot;highway&quot; IN ('motorway')" key="{cbcf5c27-09d6-40df-8216-8a8caae06302}" label="Motorway">
             <rule filter="(&quot;bridge&quot; IS NULL OR &quot;bridge&quot; IN ('no')) AND (&quot;tunnel&quot; IS NULL OR &quot;tunnel&quot; IN ('no')) AND (&quot;layer&quot; IS NULL OR &quot;layer&quot; &lt;> '-%')" key="{7e19aae9-259d-4b90-95cc-60b6a673b132}" symbol="0" label="Motorway"/>
@@ -245,7 +245,7 @@
         </rule>
         <rule filter="&quot;barrier&quot;='city_wall'" key="{9b2a50dd-4cb7-4b76-9b93-135875db0c91}" symbol="55" label="City Wall"/>
       </rule>
-      <rule scalemaxdenom="200000" key="{04045133-bd48-4850-8d91-3df4f963b623}" scalemindenom="100000" label="Zoom 2">
+      <rule scalemaxdenom="200000" key="{04045133-bd48-4850-8d91-3df4f963b623}" scalemindenom="100000" label="Zoom 100-200K">
         <rule checkstate="0" filter="&quot;highway&quot; is not null" key="{409aa0df-a9a5-4c3e-878a-32eaafc78faa}" label="Roads">
           <rule filter="&quot;highway&quot; IN ('motorway','motorway_link')" key="{54889b8d-f97f-47b8-964b-7b06130df41c}" label="Motorway">
             <rule filter="(&quot;bridge&quot; IS NULL OR &quot;bridge&quot; IN ('no')) AND (&quot;tunnel&quot; IS NULL OR &quot;tunnel&quot; IN ('no')) AND (&quot;layer&quot; IS NULL OR &quot;layer&quot; &lt;> '-%')" key="{8b318367-663e-4e4c-97b7-18347efd7bdf}" symbol="56" label="Motorway"/>
@@ -338,7 +338,7 @@
         </rule>
         <rule checkstate="0" filter="&quot;barrier&quot;='city_wall'" key="{16212093-e93f-462b-87cc-3495f7101b7f}" symbol="110" label="NO City Wall"/>
       </rule>
-      <rule scalemaxdenom="600000" key="{51f35acd-ee2c-4b80-abec-8412fc57414d}" scalemindenom="200000" label="Zoom 3">
+      <rule scalemaxdenom="600000" key="{51f35acd-ee2c-4b80-abec-8412fc57414d}" scalemindenom="200000" label="Zoom 200-600K">
         <rule checkstate="0" filter="&quot;highway&quot; is not null" key="{1045ee2e-d697-4a14-a55e-75aaed66a8ec}" label="Roads">
           <rule filter="&quot;highway&quot; IN ('motorway','motorway_link')" key="{24505fea-5c0f-4171-b69a-cad78f93e7de}" label="Motorway">
             <rule filter="(&quot;bridge&quot; IS NULL OR &quot;bridge&quot; IN ('no')) AND (&quot;tunnel&quot; IS NULL OR &quot;tunnel&quot; IN ('no')) AND (&quot;layer&quot; IS NULL OR &quot;layer&quot; &lt;> '-%')" key="{72d524f8-ee15-44b2-ab16-4a5b3937ac0b}" symbol="111" label="Motorway"/>
@@ -7237,11 +7237,11 @@
     </symbols>
   </renderer-v2>
   <labeling type="rule-based">
-    <rules key="{d466c4e2-2627-4ed5-a87c-e2600fd055e4}">
-      <rule scalemaxdenom="10000" description="Zoom 16" key="{073538d1-152c-4142-9174-410bacdc6df0}" scalemindenom="1">
-        <rule description="Pedestrian" filter="&quot;highway&quot; IN ('pedestrian')" key="{cda9cc5d-8bd3-4529-a9bb-b268232d20b0}">
+    <rules key="{3e3cd50b-d015-49d8-801e-d4f4645970e1}">
+      <rule scalemaxdenom="10000" description="Zoom 16" key="{0e332040-069b-4040-a2b0-32ce31421a39}" scalemindenom="1">
+        <rule description="Pedestrian" filter="&quot;highway&quot; IN ('pedestrian')" key="{a33bfe4e-7e67-41d6-8b76-040c3867accb}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="-0.1875" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="30,30,30,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="replace(replace(replace(replace(replace(replace(&quot;name&quot;,'Rue','R.'),'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="-0.1875" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="-0.1875" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="30,30,30,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="replace(replace(replace(replace(replace(replace(&quot;name&quot;,'Rue','R.'),'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="-0.1875" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7255,9 +7255,9 @@
             </data-defined>
           </settings>
         </rule>
-        <rule description="Roads" filter="&quot;highway&quot; IN ('residential','road','unclassified')" key="{97130f22-147a-4261-b946-881d286c31e2}">
+        <rule description="Roads" filter="&quot;highway&quot; IN ('residential','road','unclassified')" key="{d1699bb1-738b-41a4-b16a-c2cb26e41955}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6.5" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6.5" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7269,9 +7269,9 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Tertiary" filter="&quot;highway&quot; IN ('tertiary')" key="{fe57dfb5-668b-4c7e-828b-d524426f89bf}">
+        <rule description="Tertiary" filter="&quot;highway&quot; IN ('tertiary')" key="{57392ad9-eb3d-4115-91e5-91b85cd79102}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6.5" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6.5" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7283,9 +7283,9 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Secondary" filter="&quot;highway&quot; IN ('secondary')" key="{ce70ad3b-bc79-4dbd-84a1-960969356755}">
+        <rule description="Secondary" filter="&quot;highway&quot; IN ('secondary')" key="{81359718-e52a-40ac-a1e1-681664ff8548}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="7" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="7" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7297,9 +7297,9 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Primary" filter="&quot;highway&quot; IN ('primary')" key="{75d75fc3-5acb-4532-be74-0f4d2663e8aa}">
+        <rule description="Primary" filter="&quot;highway&quot; IN ('primary')" key="{93224619-616b-4c08-8bd8-2cc78080df32}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="1" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="7" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="1" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="7" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7314,9 +7314,9 @@
             </data-defined>
           </settings>
         </rule>
-        <rule description="Trunk" filter="&quot;highway&quot; IN ('trunk')" key="{048336b9-c575-47c3-b4f3-9ad92048bcae}">
+        <rule description="Trunk" filter="&quot;highway&quot; IN ('trunk')" key="{37720383-d630-4881-82c8-8233485934fc}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="1" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="7" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="1" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="7" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7332,10 +7332,10 @@
           </settings>
         </rule>
       </rule>
-      <rule scalemaxdenom="20000" description="Zoom 15" key="{0e67e0d5-6a06-49ab-a937-e2cd6084f68e}" scalemindenom="10000">
-        <rule description="Pedestrian" filter="&quot;highway&quot; IN ('pedestrian')" key="{62d6dba0-51cd-42c1-b746-5eecf5f5ccb2}">
+      <rule scalemaxdenom="20000" description="Zoom 15" key="{0aa25f39-053b-4cc8-b73c-b28be81ef45f}" scalemindenom="10000">
+        <rule description="Pedestrian" filter="&quot;highway&quot; IN ('pedestrian')" key="{c9cc498d-a04e-47ba-ae1d-08c854821833}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="-0.1875" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="30,30,30,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="5" fieldName="replace(replace(replace(replace(replace(replace(&quot;name&quot;,'Rue','R.'),'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="-0.1875" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="-0.1875" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="30,30,30,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="5" fieldName="replace(replace(replace(replace(replace(replace(&quot;name&quot;,'Rue','R.'),'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="-0.1875" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7349,9 +7349,9 @@
             </data-defined>
           </settings>
         </rule>
-        <rule description="Roads" filter="&quot;highway&quot; IN ('residential','road','unclassified')" key="{aa532695-182b-421d-826d-596799bc392a}">
+        <rule description="Roads" filter="&quot;highway&quot; IN ('residential','road','unclassified')" key="{e6e4f892-0ac9-417f-9c9c-a23f7ed045ff}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7363,9 +7363,9 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Tertiary" filter="&quot;highway&quot; IN ('tertiary')" key="{e136239b-acb0-4f8b-9365-6b3322779576}">
+        <rule description="Tertiary" filter="&quot;highway&quot; IN ('tertiary')" key="{21699a18-479d-476f-874f-583fb34eaf7a}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7377,9 +7377,9 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Secondary" filter="&quot;highway&quot; IN ('secondary')" key="{4723a7de-f8ef-49d7-aca9-ffbd37111617}">
+        <rule description="Secondary" filter="&quot;highway&quot; IN ('secondary')" key="{e3f16ca4-400a-4eb3-83d0-9b55f22646a2}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7391,9 +7391,9 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Primary" filter="&quot;highway&quot; IN ('primary')" key="{92dc77f1-6d1f-430e-a3bc-2b600c0e5a97}">
+        <rule description="Primary" filter="&quot;highway&quot; IN ('primary')" key="{5d3763f1-a093-4cc4-8a59-c80fd394a432}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="1" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="1" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7408,9 +7408,9 @@
             </data-defined>
           </settings>
         </rule>
-        <rule description="Trunk" filter="&quot;highway&quot; IN ('trunk')" key="{c8f67c66-4179-44ca-9842-e6ef59b01d8f}">
+        <rule description="Trunk" filter="&quot;highway&quot; IN ('trunk')" key="{9f7a23ef-1693-4fad-b8d0-deefed7ed49b}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="1" textColor="107,80,38,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Book" fontWordSpacing="0" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="1" textColor="107,80,38,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Book" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7430,10 +7430,10 @@
           </settings>
         </rule>
       </rule>
-      <rule scalemaxdenom="40000" description="Zoom 14" key="{6acfbcad-b064-4724-9eb7-d48e943d141e}" scalemindenom="20000">
-        <rule description="Motorway" filter="&quot;highway&quot; IN ('motorway') AND &quot;bridge&quot; IS NULL" key="{a78e27bf-5038-493b-b3b5-6a5d6e0ad65c}">
+      <rule scalemaxdenom="40000" description="Zoom 14" key="{4cfa3807-f008-476b-a351-db26fe195b17}" scalemindenom="20000">
+        <rule description="Motorway" filter="&quot;highway&quot; IN ('motorway') AND &quot;bridge&quot; IS NULL" key="{5ee89039-c508-40f1-a9ed-0af23323ec00}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="131,56,81,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="131,56,81,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7445,9 +7445,9 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Trunk" filter="&quot;highway&quot; IN ('trunk')" key="{92829db9-b6d8-4d72-b5a8-9fb7d2e05e9b}">
+        <rule description="Trunk" filter="&quot;highway&quot; IN ('trunk')" key="{b7478567-77dd-48f3-9e04-b55fbb7f3822}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="112,51,36,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="112,51,36,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7459,9 +7459,9 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Primary" filter="&quot;highway&quot; IN ('primary')" key="{e3bb8bc5-144b-440d-a200-9e2c1ca153bf}">
+        <rule description="Primary" filter="&quot;highway&quot; IN ('primary')" key="{205ba602-b77e-496b-96c9-4bfadd6e0108}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="107,80,38,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="107,80,38,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7473,9 +7473,9 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Secondary" filter="&quot;highway&quot; IN ('secondary')" key="{73ab5b6b-0b53-408a-b922-0c2d0a7a3ed1}">
+        <rule description="Secondary" filter="&quot;highway&quot; IN ('secondary')" key="{a82445c8-5c6c-418d-8408-c770299c7be3}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="39,42,19,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="5.5" fieldName="name" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="39,42,19,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="5.5" fieldName="name" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7487,9 +7487,9 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Tertiary" filter="&quot;highway&quot; IN ('tertiary')" key="{8b438faf-800f-4b4f-87d6-f1d611d18e86}">
+        <rule description="Tertiary" filter="&quot;highway&quot; IN ('tertiary')" key="{29ad26d7-e7b5-4f4f-8a8e-d49cc591f4ec}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="26,26,26,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="5.5" fieldName="name" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="26,26,26,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="5.5" fieldName="name" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7502,10 +7502,10 @@
           </settings>
         </rule>
       </rule>
-      <rule scalemaxdenom="80000" description="Zoom 13" key="{89c7609f-a8e3-49f0-9e2e-e635a052007e}" scalemindenom="40000">
-        <rule description="Motorway" filter="&quot;highway&quot; IN ('motorway')" key="{1de32d37-4ffc-4387-9b29-74cb98045a0f}">
+      <rule scalemaxdenom="80000" description="Zoom 13" key="{c0d21d33-7b81-4153-982b-88151c844fc2}" scalemindenom="40000">
+        <rule description="Motorway" filter="&quot;highway&quot; IN ('motorway')" key="{c9690ddb-32c2-4dcb-b674-4949bc95c3a2}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="131,56,81,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="131,56,81,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7517,9 +7517,9 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Trunk" filter="&quot;highway&quot; IN ('trunk')" key="{a71f1424-56c9-4315-9e0e-f1c297bfb8e7}">
+        <rule description="Trunk" filter="&quot;highway&quot; IN ('trunk')" key="{7e54145f-b29c-4deb-af3f-81f308a49a82}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="112,51,36,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="112,51,36,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7531,9 +7531,9 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Primary" filter="&quot;highway&quot; IN ('primary')" key="{e320d397-312e-43c2-8d0e-e82a2ca36bd9}">
+        <rule description="Primary" filter="&quot;highway&quot; IN ('primary')" key="{6a74a826-35ff-4582-af36-d4ebe767985b}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="107,80,38,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="107,80,38,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7545,9 +7545,9 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Secondary" filter="&quot;highway&quot; IN ('secondary')" key="{032945e5-0850-4c2e-a20f-a3eac55b1938}">
+        <rule description="Secondary" filter="&quot;highway&quot; IN ('secondary')" key="{e606308a-85a9-4c1c-b105-7bccaf2d8f23}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="88,94,44,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="88,94,44,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7559,9 +7559,9 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Tertiary" filter="&quot;highway&quot; IN ('tertiary')" key="{6a4247fc-0f23-47f3-b98d-b2fdf1554f41}">
+        <rule description="Tertiary" filter="&quot;highway&quot; IN ('tertiary')" key="{0dee2d75-7687-48db-9d84-7ba6ae698660}">
           <settings>
-            <text-style fontItalic="0" fontFamily="MS Shell Dlg 2" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="111,113,111,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
+            <text-style fontItalic="0" fontFamily="Noto Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="111,113,111,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
             </text-style>
             <text-format placeDirectionSymbol="0" multilineAlign="0" rightDirectionSymbol=">" multilineHeight="1" plussign="0" addDirectionSymbol="0" leftDirectionSymbol="&lt;" formatNumbers="0" decimals="3" wrapChar="" reverseDirectionSymbol="0"/>
@@ -7753,7 +7753,6 @@
   <SingleCategoryDiagramRenderer diagramType="Histogram" sizeLegend="0" attributeLegend="1">
     <DiagramCategory penColor="#000000" labelPlacementMethod="XHeight" penWidth="0" diagramOrientation="Up" sizeScale="0,0,0,0,0,0" minimumSize="0" barWidth="5" penAlpha="255" maxScaleDenominator="1e+08" backgroundColor="#ffffff" transparency="0" width="15" scaleDependency="Area" backgroundAlpha="255" angleOffset="1440" scaleBasedVisibility="0" enabled="0" height="15" lineSizeScale="0,0,0,0,0,0" sizeType="MM" lineSizeType="MM" minScaleDenominator="inf">
       <fontProperties description="Noto Sans,10,-1,5,50,0,0,0,0,0" style=""/>
-      <attribute field="" color="#000000" label=""/>
     </DiagramCategory>
     <symbol alpha="1" clip_to_extent="1" type="marker" name="sizeSymbol">
       <layer pass="0" class="SimpleMarker" locked="0">

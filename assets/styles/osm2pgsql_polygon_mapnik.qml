@@ -145,8 +145,8 @@
   </edittypes>
   <renderer-v2 forceraster="0" symbollevels="0" type="RuleRenderer" enableorderby="0">
     <rules key="{4460c20d-65ab-4c6f-99cd-f718bcb014e0}">
-      <rule scalemaxdenom="40000" key="{914677b7-4df0-490e-b3e0-e95a1f780e71}" scalemindenom="1" label="Zoom 1">
-        <rule filter="&quot;building&quot; IS NOT NULL" key="{4e5004ea-09f4-4ef1-9bd5-41045cbd632f}" label="Building">
+      <rule scalemaxdenom="40000" key="{914677b7-4df0-490e-b3e0-e95a1f780e71}" scalemindenom="1" label="Zoom 1-40K">
+        <rule checkstate="0" filter="&quot;building&quot; IS NOT NULL" key="{4e5004ea-09f4-4ef1-9bd5-41045cbd632f}" label="Building">
           <rule checkstate="0" filter="&quot;building&quot; IN ( 'church','cathedral') OR  &quot;amenity&quot; IN ('place_of_worship')" key="{78e8abfa-437a-43ad-af60-a044180080a6}" symbol="0" label="Church"/>
           <rule filter="&quot;building&quot; NOT IN ( 'church','cathedral')" key="{bd429e6b-4ce4-4c4e-b7e5-40d3294b1f7a}" symbol="1" label="Building"/>
         </rule>
@@ -185,8 +185,8 @@
           <rule filter="&quot;leisure&quot; = 'track'" key="{0c7a99bd-a27d-4cac-8423-1eac4971c809}" symbol="29" label="Track"/>
         </rule>
       </rule>
-      <rule scalemaxdenom="150000" key="{1a9237cf-1996-49d6-a15f-df2a21958cec}" scalemindenom="40000" label="Zoom 2">
-        <rule filter="&quot;building&quot; is not null" key="{39f238ef-d96e-4682-8d87-9d5caee3844a}" label="Building">
+      <rule scalemaxdenom="150000" key="{1a9237cf-1996-49d6-a15f-df2a21958cec}" scalemindenom="40000" label="Zoom 40-150K">
+        <rule checkstate="0" filter="&quot;building&quot; is not null" key="{39f238ef-d96e-4682-8d87-9d5caee3844a}" label="Building">
           <rule checkstate="0" filter="&quot;building&quot; IN ( 'church','cathedral')" key="{842b7000-2eaa-46b6-b8d4-becd8859b1db}" symbol="30" label="Church"/>
           <rule filter="&quot;building&quot; NOT IN ( 'church','cathedral')" key="{ec2be41e-1c3e-40d3-a55c-eb0b0ff9332b}" symbol="31" label="Building"/>
         </rule>
@@ -222,7 +222,7 @@
           <rule filter="&quot;leisure&quot; = 'track'" key="{ee995fc7-95fd-423e-a559-3e4a8ce92c15}" symbol="56" label="Track"/>
         </rule>
       </rule>
-      <rule scalemaxdenom="600000" key="{200f65b0-2c89-46ec-b4f1-84527df3ce7b}" scalemindenom="150000" label="Zoom 3">
+      <rule scalemaxdenom="600000" key="{200f65b0-2c89-46ec-b4f1-84527df3ce7b}" scalemindenom="150000" label="Zoom 150-600K">
         <rule checkstate="0" filter="&quot;building&quot; is not null" key="{cf2510b8-c83f-4f96-8c4f-1074cb4309b3}" label="NO Building">
           <rule checkstate="0" filter="&quot;building&quot; IN ( 'church','cathedral')" key="{67cea3e3-f359-4fbf-a44a-4f111450a463}" symbol="57" label="Church"/>
           <rule checkstate="0" filter="&quot;building&quot; NOT IN ( 'church','cathedral')" key="{7a5ef3ad-db17-4d16-bf66-7e02e717c70f}" symbol="58" label="Building"/>
@@ -2132,8 +2132,8 @@
     </symbols>
   </renderer-v2>
   <labeling type="rule-based">
-    <rules key="{3d24d9dd-d0b4-4042-804d-f2f0b3609102}">
-      <rule description="Building" filter="($area/ $scale)>0" key="{7d6a342b-2e29-4c7b-8a06-707025fc527c}">
+    <rules key="{4c1c4e9a-211f-4e33-828b-2b9b5da902f3}">
+      <rule description="Building" filter="($area/ $scale)>0" key="{2f52833a-ae35-40fa-9db4-d4ab868b7079}">
         <settings>
           <text-style fontItalic="0" fontFamily="Ubuntu" fontLetterSpacing="0" fontUnderline="0" fontWeight="63" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="0,0,0,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="11" fieldName="name" namedStyle="Medium" fontWordSpacing="0" useSubstitutions="0">
             <substitutions/>
@@ -2147,7 +2147,7 @@
           <data-defined/>
         </settings>
       </rule>
-      <rule description="Parking" filter="&quot;amenity&quot; IN ('parking','parking_space')" key="{7c67a424-268f-4237-903c-d06ae2b01ad7}">
+      <rule description="Parking" filter="&quot;amenity&quot; IN ('parking','parking_space')" key="{8ff741a4-2c64-41e3-ae67-a7532bf8f75f}">
         <settings>
           <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="67,168,215,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="9" fieldName="'P'" namedStyle="Book" fontWordSpacing="0" useSubstitutions="0">
             <substitutions/>
@@ -2161,7 +2161,7 @@
           <data-defined/>
         </settings>
       </rule>
-      <rule scalemaxdenom="10000" description="School" filter="&quot;amenity&quot;='school' AND &quot;building&quot; IS NULL" key="{212b7f65-02f0-4109-aca7-49dcc88deddc}" scalemindenom="1">
+      <rule scalemaxdenom="10000" description="School" filter="&quot;amenity&quot;='school' AND &quot;building&quot; IS NULL" key="{d1bdc33f-9e87-434d-8a11-f8aef9bba530}" scalemindenom="1">
         <settings>
           <text-style fontItalic="1" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="83,83,43,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="7.5" fieldName="wordwrap(&quot;name&quot;,12)" namedStyle="Oblique" fontWordSpacing="0" useSubstitutions="0">
             <substitutions/>
@@ -2175,7 +2175,7 @@
           <data-defined/>
         </settings>
       </rule>
-      <rule description="Protected Area" filter="&quot;boundary&quot;='protected_area' AND &quot;leisure&quot;='nature_reserve'" key="{eaaf2ab1-f22a-4544-aa08-9533abc08c9d}">
+      <rule description="Protected Area" filter="&quot;boundary&quot;='protected_area' AND &quot;leisure&quot;='nature_reserve'" key="{4d980fee-e27f-4380-a458-5ecb07941239}">
         <settings>
           <text-style fontItalic="1" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="66,124,69,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="8" fieldName="wordwrap(&quot;name&quot;,12)" namedStyle="Oblique" fontWordSpacing="0" useSubstitutions="0">
             <substitutions/>
@@ -2369,7 +2369,6 @@
   <SingleCategoryDiagramRenderer diagramType="Histogram" sizeLegend="0" attributeLegend="1">
     <DiagramCategory penColor="#000000" labelPlacementMethod="XHeight" penWidth="0" diagramOrientation="Up" sizeScale="0,0,0,0,0,0" minimumSize="0" barWidth="5" penAlpha="255" maxScaleDenominator="1e+08" backgroundColor="#ffffff" transparency="0" width="15" scaleDependency="Area" backgroundAlpha="255" angleOffset="1440" scaleBasedVisibility="0" enabled="0" height="15" lineSizeScale="0,0,0,0,0,0" sizeType="MM" lineSizeType="MM" minScaleDenominator="inf">
       <fontProperties description="Noto Sans,10,-1,5,50,0,0,0,0,0" style=""/>
-      <attribute field="" color="#000000" label=""/>
     </DiagramCategory>
     <symbol alpha="1" clip_to_extent="1" type="marker" name="sizeSymbol">
       <layer pass="0" class="SimpleMarker" locked="0">

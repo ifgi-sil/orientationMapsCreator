@@ -1019,10 +1019,6 @@ class orientationMapsCreator:
 #             QgsMapLayerRegistry.instance().addMapLayer(mem_vl)
 #             self.projectLayerList['tmp_memory_route'] = mem_vl
             
-            #Enable Analyze Route Button
-            self.dockwidget.btnBufferNetwork.setEnabled(True)
-            
-            
         except psycopg2.DatabaseError, e:
             print "** Database Error"
             QApplication.restoreOverrideCursor()
@@ -1044,6 +1040,10 @@ class orientationMapsCreator:
         
         stop = timeit.default_timer()
         print('saveRoute time: ', stop - start)
+        
+        #Enable Analyze Route and Buffer Network Buttons
+        self.dockwidget.btnBufferNetwork.setEnabled(True)
+        self.dockwidget.btnAnalyzeRoute.setEnabled(True)
         
         self.saveRoutePoints(args)
         
@@ -1397,8 +1397,6 @@ class orientationMapsCreator:
         
         stop = timeit.default_timer()
         print('bufferNetwork time: ', stop - start)
-        
-        self.dockwidget.btnAnalyzeRoute.setEnabled(True)
         
     
     def analyzeRoute(self):

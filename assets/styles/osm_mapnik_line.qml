@@ -145,7 +145,7 @@
   </edittypes>
   <renderer-v2 forceraster="0" symbollevels="0" type="RuleRenderer" enableorderby="0">
     <rules key="{2439e0f5-d5a7-45a4-b5c6-6e7c84f875c3}">
-      <rule scalemaxdenom="100000" key="{c23779b1-aa53-4c35-b9da-753b59d5f3c3}" scalemindenom="1" label="Zoom 1">
+      <rule scalemaxdenom="100000" key="{c23779b1-aa53-4c35-b9da-753b59d5f3c3}" scalemindenom="1" label="Zoom 1-100K">
         <rule filter="&quot;highway&quot; is not null" key="{4fabebec-ebd2-4669-9e44-29ef05dee6c0}" label="Roads">
           <rule filter="&quot;highway&quot; IN ('motorway')" key="{cbcf5c27-09d6-40df-8216-8a8caae06302}" label="Motorway">
             <rule filter="(&quot;bridge&quot; IS NULL OR &quot;bridge&quot; IN ('no')) AND (&quot;tunnel&quot; IS NULL OR &quot;tunnel&quot; IN ('no')) AND (&quot;layer&quot; IS NULL OR &quot;layer&quot; &lt;> '-%')" key="{7e19aae9-259d-4b90-95cc-60b6a673b132}" symbol="0" label="Motorway"/>
@@ -245,7 +245,7 @@
         </rule>
         <rule filter="&quot;barrier&quot;='city_wall'" key="{9b2a50dd-4cb7-4b76-9b93-135875db0c91}" symbol="55" label="City Wall"/>
       </rule>
-      <rule scalemaxdenom="200000" key="{04045133-bd48-4850-8d91-3df4f963b623}" scalemindenom="100000" label="Zoom 2">
+      <rule scalemaxdenom="200000" key="{04045133-bd48-4850-8d91-3df4f963b623}" scalemindenom="100000" label="Zoom 100-200K">
         <rule filter="&quot;highway&quot; is not null" key="{409aa0df-a9a5-4c3e-878a-32eaafc78faa}" label="Roads">
           <rule filter="&quot;highway&quot; IN ('motorway','motorway_link')" key="{54889b8d-f97f-47b8-964b-7b06130df41c}" label="Motorway">
             <rule filter="(&quot;bridge&quot; IS NULL OR &quot;bridge&quot; IN ('no')) AND (&quot;tunnel&quot; IS NULL OR &quot;tunnel&quot; IN ('no')) AND (&quot;layer&quot; IS NULL OR &quot;layer&quot; &lt;> '-%')" key="{8b318367-663e-4e4c-97b7-18347efd7bdf}" symbol="56" label="Motorway"/>
@@ -338,7 +338,7 @@
         </rule>
         <rule checkstate="0" filter="&quot;barrier&quot;='city_wall'" key="{16212093-e93f-462b-87cc-3495f7101b7f}" symbol="110" label="NO City Wall"/>
       </rule>
-      <rule scalemaxdenom="600000" key="{51f35acd-ee2c-4b80-abec-8412fc57414d}" scalemindenom="200000" label="Zoom 3">
+      <rule scalemaxdenom="600000" key="{51f35acd-ee2c-4b80-abec-8412fc57414d}" scalemindenom="200000" label="Zoom 200-600K">
         <rule filter="&quot;highway&quot; is not null" key="{1045ee2e-d697-4a14-a55e-75aaed66a8ec}" label="Roads">
           <rule filter="&quot;highway&quot; IN ('motorway','motorway_link')" key="{24505fea-5c0f-4171-b69a-cad78f93e7de}" label="Motorway">
             <rule filter="(&quot;bridge&quot; IS NULL OR &quot;bridge&quot; IN ('no')) AND (&quot;tunnel&quot; IS NULL OR &quot;tunnel&quot; IN ('no')) AND (&quot;layer&quot; IS NULL OR &quot;layer&quot; &lt;> '-%')" key="{72d524f8-ee15-44b2-ab16-4a5b3937ac0b}" symbol="111" label="Motorway"/>
@@ -7237,9 +7237,9 @@
     </symbols>
   </renderer-v2>
   <labeling type="rule-based">
-    <rules key="{dd2a6e97-bb40-42f4-8b72-841c4276238f}">
-      <rule scalemaxdenom="10000" description="Zoom 16" key="{f138a641-fdd9-4719-99f4-136c059adfe2}" scalemindenom="1">
-        <rule description="Pedestrian" filter="&quot;highway&quot; IN ('pedestrian')" key="{77d51d51-0933-487b-98c5-e1b17fc18bf8}">
+    <rules key="{52ff8899-9c2e-4f45-adc0-4a81fbcaf34e}">
+      <rule scalemaxdenom="10000" description="Zoom 16" key="{d90e931b-6e64-4284-99ee-8f3a29888522}" scalemindenom="1">
+        <rule description="Pedestrian" filter="&quot;highway&quot; IN ('pedestrian')" key="{7b0614a1-e99e-4e0d-85b1-5762b4cdfd8b}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="-0.1875" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="30,30,30,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="replace(replace(replace(replace(replace(replace(&quot;name&quot;,'Rue','R.'),'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="-0.1875" useSubstitutions="0">
               <substitutions/>
@@ -7255,7 +7255,7 @@
             </data-defined>
           </settings>
         </rule>
-        <rule description="Roads" filter="&quot;highway&quot; IN ('residential','road','unclassified')" key="{5ba4a509-9aaa-4d31-8e5b-5f34f194662f}">
+        <rule description="Roads" filter="&quot;highway&quot; IN ('residential','road','unclassified')" key="{912eff07-d7cb-4de6-ac43-4094cc60ef8c}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6.5" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
@@ -7269,7 +7269,7 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Tertiary" filter="&quot;highway&quot; IN ('tertiary')" key="{aa74cca5-9b13-4b62-a201-10babb5e64dc}">
+        <rule description="Tertiary" filter="&quot;highway&quot; IN ('tertiary')" key="{e4b3713d-74a1-4d34-9d65-308fee6c2781}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6.5" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
@@ -7283,7 +7283,7 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Secondary" filter="&quot;highway&quot; IN ('secondary')" key="{f6b68e0a-e0e8-4898-ae52-9f87007b4c97}">
+        <rule description="Secondary" filter="&quot;highway&quot; IN ('secondary')" key="{079cfc84-38a1-46a4-a4e6-1e56fdcd65de}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="7" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
@@ -7297,7 +7297,7 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Primary" filter="&quot;highway&quot; IN ('primary')" key="{e51f0c04-742d-4c72-9f10-013342dc823a}">
+        <rule description="Primary" filter="&quot;highway&quot; IN ('primary')" key="{73419f94-ef7b-4cbf-b01b-29435cd5d638}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="1" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="7" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
@@ -7314,7 +7314,7 @@
             </data-defined>
           </settings>
         </rule>
-        <rule description="Trunk" filter="&quot;highway&quot; IN ('trunk')" key="{e3ddfaf1-07bf-4013-9a77-31492d00b3a1}">
+        <rule description="Trunk" filter="&quot;highway&quot; IN ('trunk')" key="{7e377232-aa12-429d-ae33-bd0fdca68e87}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="1" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="7" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
@@ -7332,8 +7332,8 @@
           </settings>
         </rule>
       </rule>
-      <rule scalemaxdenom="20000" description="Zoom 15" key="{4ded653f-6353-48bb-b87c-2a9b7e17cf3a}" scalemindenom="10000">
-        <rule description="Pedestrian" filter="&quot;highway&quot; IN ('pedestrian')" key="{bb8d1d88-eba1-4122-b5ba-1f800e344613}">
+      <rule scalemaxdenom="20000" description="Zoom 15" key="{aed76f80-ffbc-4e9d-abad-0b6976d70747}" scalemindenom="10000">
+        <rule description="Pedestrian" filter="&quot;highway&quot; IN ('pedestrian')" key="{363c9a96-6eaa-44ac-b33a-0010a3c6f8e3}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="-0.1875" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="30,30,30,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="5" fieldName="replace(replace(replace(replace(replace(replace(&quot;name&quot;,'Rue','R.'),'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="-0.1875" useSubstitutions="0">
               <substitutions/>
@@ -7349,7 +7349,7 @@
             </data-defined>
           </settings>
         </rule>
-        <rule description="Roads" filter="&quot;highway&quot; IN ('residential','road','unclassified')" key="{a79dae2d-2668-43aa-a6a0-99138ad62292}">
+        <rule description="Roads" filter="&quot;highway&quot; IN ('residential','road','unclassified')" key="{8b2ea0a9-fd93-40eb-9f64-0985c0313647}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
@@ -7363,7 +7363,7 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Tertiary" filter="&quot;highway&quot; IN ('tertiary')" key="{db5788fa-3134-4f82-9578-03ef65e0ac67}">
+        <rule description="Tertiary" filter="&quot;highway&quot; IN ('tertiary')" key="{c7aefb63-b282-4f1d-aa42-310fc77455f9}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
@@ -7377,7 +7377,7 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Secondary" filter="&quot;highway&quot; IN ('secondary')" key="{7c50b325-0fd6-4fa1-bc30-d183f6f77387}">
+        <rule description="Secondary" filter="&quot;highway&quot; IN ('secondary')" key="{e079bb05-88c5-40e2-bcea-9f9fb94ec15b}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
@@ -7391,7 +7391,7 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Primary" filter="&quot;highway&quot; IN ('primary')" key="{fcd719e5-94b8-4909-b463-82cece4f78ac}">
+        <rule description="Primary" filter="&quot;highway&quot; IN ('primary')" key="{4fe64df7-6d22-4f28-b52d-34bd8e9260f1}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="1" textColor="42,42,42,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
@@ -7408,7 +7408,7 @@
             </data-defined>
           </settings>
         </rule>
-        <rule description="Trunk" filter="&quot;highway&quot; IN ('trunk')" key="{41a029ec-b7db-46e4-bb07-4f4d52256c4f}">
+        <rule description="Trunk" filter="&quot;highway&quot; IN ('trunk')" key="{5efdcd9e-51cf-4497-b8e6-47479b3d741f}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="1" textColor="107,80,38,255" fontSizeInMapUnits="0" isExpression="1" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="replace(replace(replace(replace(replace(&quot;name&quot;,'Impasse','Imp.'),'Place','Pl.'),'Boulevard','Bd'),'Avenue','Av.'),'Saint','St')" namedStyle="Book" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
@@ -7430,8 +7430,8 @@
           </settings>
         </rule>
       </rule>
-      <rule scalemaxdenom="40000" description="Zoom 14" key="{1fbab7ef-a018-4d66-8e84-6bee544c5120}" scalemindenom="20000">
-        <rule description="Motorway" filter="&quot;highway&quot; IN ('motorway') AND &quot;bridge&quot; IS NULL" key="{613cb9ff-28ee-4c90-87a6-03e63ce469b7}">
+      <rule scalemaxdenom="40000" description="Zoom 14" key="{db9c7919-7bfe-4c35-9171-71292c960dc6}" scalemindenom="20000">
+        <rule description="Motorway" filter="&quot;highway&quot; IN ('motorway') AND &quot;bridge&quot; IS NULL" key="{ed44a572-8632-4f56-a7a2-690332fe5d82}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="131,56,81,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
@@ -7445,7 +7445,7 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Trunk" filter="&quot;highway&quot; IN ('trunk')" key="{761a8414-eee8-4ce9-b01d-a4fb8d15c819}">
+        <rule description="Trunk" filter="&quot;highway&quot; IN ('trunk')" key="{061543c1-b3a6-418c-9c0d-f88aa7352851}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="112,51,36,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
@@ -7459,7 +7459,7 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Primary" filter="&quot;highway&quot; IN ('primary')" key="{f12cb9b5-3630-4f5d-9c8e-99fcda592179}">
+        <rule description="Primary" filter="&quot;highway&quot; IN ('primary')" key="{75005ef4-25d8-48b7-b893-1e13a848069a}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="107,80,38,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
@@ -7473,7 +7473,7 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Secondary" filter="&quot;highway&quot; IN ('secondary')" key="{cf4ad104-828b-4428-a804-2e00fd1459bc}">
+        <rule description="Secondary" filter="&quot;highway&quot; IN ('secondary')" key="{fe1c81f2-ac01-4654-9818-f93f43ebdd11}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="39,42,19,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="5.5" fieldName="name" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
@@ -7487,7 +7487,7 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Tertiary" filter="&quot;highway&quot; IN ('tertiary')" key="{cc6a9d4e-4cd8-480b-b141-d6a543081e22}">
+        <rule description="Tertiary" filter="&quot;highway&quot; IN ('tertiary')" key="{37f1182a-34e2-4ee1-a29f-522bcc02df75}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="26,26,26,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="5.5" fieldName="name" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
@@ -7502,8 +7502,8 @@
           </settings>
         </rule>
       </rule>
-      <rule scalemaxdenom="80000" description="Zoom 13" key="{656adf18-2289-43b3-994c-7058819063fb}" scalemindenom="40000">
-        <rule description="Motorway" filter="&quot;highway&quot; IN ('motorway')" key="{de5ed106-371c-4f7f-8d45-3fdeb8d01984}">
+      <rule scalemaxdenom="80000" description="Zoom 13" key="{700d4735-c1e3-49f8-b1ce-685581625262}" scalemindenom="40000">
+        <rule description="Motorway" filter="&quot;highway&quot; IN ('motorway')" key="{f2c9397e-6e80-4030-89bc-2dfccd0fe6f9}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="131,56,81,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
@@ -7517,7 +7517,7 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Trunk" filter="&quot;highway&quot; IN ('trunk')" key="{402a4f3e-1c75-4227-98fe-c5103350cbb7}">
+        <rule description="Trunk" filter="&quot;highway&quot; IN ('trunk')" key="{5a20fe1b-c507-4f58-859c-331c1c285d7d}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="112,51,36,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
@@ -7531,7 +7531,7 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Primary" filter="&quot;highway&quot; IN ('primary')" key="{922bc508-1307-4d60-82fa-efc5251cc096}">
+        <rule description="Primary" filter="&quot;highway&quot; IN ('primary')" key="{daa6336c-0954-4d97-be39-5f61965bbcf1}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="107,80,38,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
@@ -7545,7 +7545,7 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Secondary" filter="&quot;highway&quot; IN ('secondary')" key="{e9b0f300-6d3c-4db2-bd0c-1dd6a4d32942}">
+        <rule description="Secondary" filter="&quot;highway&quot; IN ('secondary')" key="{02bf8ea1-64c2-4280-b31c-1856f49c441f}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="88,94,44,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
@@ -7559,7 +7559,7 @@
             <data-defined/>
           </settings>
         </rule>
-        <rule description="Tertiary" filter="&quot;highway&quot; IN ('tertiary')" key="{e7d580e2-29fc-4979-bddf-9bd823aa31e8}">
+        <rule description="Tertiary" filter="&quot;highway&quot; IN ('tertiary')" key="{241e3db4-2a9e-4fcb-9558-8931c831207c}">
           <settings>
             <text-style fontItalic="0" fontFamily="DejaVu Sans" fontLetterSpacing="0" fontUnderline="0" fontWeight="50" fontStrikeout="0" textTransp="0" previewBkgrdColor="#ffffff" fontCapitals="0" textColor="111,113,111,255" fontSizeInMapUnits="0" isExpression="0" blendMode="0" fontSizeMapUnitScale="0,0,0,0,0,0" fontSize="6" fieldName="ref" namedStyle="Condensed" fontWordSpacing="0" useSubstitutions="0">
               <substitutions/>
