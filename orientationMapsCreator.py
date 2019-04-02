@@ -112,6 +112,7 @@ class orientationMapsCreator:
         self.dbSchemaSettings = {}
         self.dbEdgesTableSettings = {}
         self.dbVerticesTableSettings = {}
+        self.dbRouteTableSettings = {}
         self.dbOpenNRWSchemaSettings = {}
         self.dbOpenNRWDLMSettings = {}
         self.dbOSMSchemaSettings = {}
@@ -277,11 +278,15 @@ class orientationMapsCreator:
         QObject.connect(self.dockwidget.comboBoxEdgesSchema, SIGNAL("currentIndexChanged(const QString&)"), self.updateEdgesSchemaIndexChanged)
         QObject.connect(self.dockwidget.comboBoxEdgesTable, SIGNAL("currentIndexChanged(const QString&)"), self.updateEdgesTableIndexChanged)
         QObject.connect(self.dockwidget.comboBoxVerticesTable, SIGNAL("currentIndexChanged(const QString&)"), self.updateVerticesTableIndexChanged)
+        QObject.connect(self.dockwidget.comboBoxRouteTable, SIGNAL("currentIndexChanged(const QString&)"), self.updateRouteTableIndexChanged)
+        
+        
         
         QObject.connect(self.dockwidget.btnPreviewRoute, SIGNAL("clicked()"), self.previewRoute)
         QObject.connect(self.dockwidget.btnClearPreview, SIGNAL("clicked()"), self.clearPreview)
         QObject.connect(self.dockwidget.btnSaveRoute, SIGNAL("clicked()"), self.saveRoute)
         QObject.connect(self.dockwidget.btnRemoveRoute, SIGNAL("clicked()"), self.removeRoute)
+        QObject.connect(self.dockwidget.btnLoadRoute, SIGNAL("clicked()"), self.loadRoute)
         #QObject.connect(self.dockwidget.btnSaveRoute, SIGNAL("clicked()"), self.routeCalculator.saveRoute)
         
         QObject.connect(self.dockwidget.btnBufferNetwork, SIGNAL("clicked()"), self.bufferNetwork)
@@ -290,8 +295,10 @@ class orientationMapsCreator:
         # One source id can be selected in some functions/version
         QObject.connect(self.dockwidget.btnSelectSourceID, SIGNAL("clicked(bool)"), self.selectSourceId)
         QObject.connect(self.sourceIdEmitPoint, SIGNAL("canvasClicked(const QgsPoint&, Qt::MouseButton)"), self.setSourceId)
+        QObject.connect(self.dockwidget.btnSelectRandomSource, SIGNAL("clicked()"), self.setRandomSourceId)
         QObject.connect(self.dockwidget.btnSelectTargetID, SIGNAL("clicked(bool)"), self.selectTargetId)
         QObject.connect(self.targetIdEmitPoint, SIGNAL("canvasClicked(const QgsPoint&, Qt::MouseButton)"), self.setTargetId)
+        QObject.connect(self.dockwidget.btnSelectRandomTarget, SIGNAL("clicked()"), self.setRandomTargetId)
         
         
         # OPEN NRW
@@ -528,6 +535,38 @@ class orientationMapsCreator:
         schema = str(self.dockwidget.comboBoxResultsSchema.currentText())
         self.dbResultsSchemaSettings[dbname] = schema
         
+        # temp save previous route table
+        curRouteTable = ''
+        if dbname+'.'+schema in self.dbRouteTableSettings:
+            curRouteTable = self.dbRouteTableSettings[dbname+'.'+schema]
+            
+        # empty route fields
+        self.dockwidget.comboBoxRouteTable.clear()
+        
+        # retrieve route tables for new schema
+        try:
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            for table in db.list_geotables(schema):
+                self.dockwidget.comboBoxRouteTable.addItem(table[0])
+                #print "** edgesVerticesTable = ", table[0]
+                
+        except dbConnection.DbError, e:
+            Utils.logMessage("dbname:" + dbname + ", " + e.msg)
+
+        finally:
+            if db and db.con:
+                db.con.close()
+                
+        # restore previously selected route table if exists
+        idx = self.dockwidget.comboBoxRouteTable.findText(curRouteTable)
+        if idx >= 0:
+            self.dockwidget.comboBoxRouteTable.setCurrentIndex(idx) #reset to previous selection
+            # comboBox updates but route load needs to be triggered manually if required
+        else:
+            self.dockwidget.comboBoxRouteTable.setCurrentIndex(0)   
+        self.dbRouteTableSettings[dbname+'.'+schema] = str(self.dockwidget.comboBoxRouteTable.currentText())
+        
 
     def updateEdgesSchemaIndexChanged(self):
         """Reload Tables of connected Schema"""
@@ -604,11 +643,21 @@ class orientationMapsCreator:
         #print "** updateVerticesTableIndexChanged"
         
         dbname = str(self.dockwidget.comboBoxDatabase.currentText())        
-        schema = str(self.dockwidget.comboBoxEdgesSchema.currentText())
+        schema = str(self.dockwidget.comboBoxResultsSchema.currentText())
         table = str(self.dockwidget.comboBoxVerticesTable.currentText())
         self.dbVerticesTableSettings[dbname+'.'+schema] = table
         
+    
+    def updateRouteTableIndexChanged(self):
+            
+        #print "** updateRouteTableIndexChanged"
         
+        dbname = str(self.dockwidget.comboBoxDatabase.currentText())        
+        schema = str(self.dockwidget.comboBoxEdgesSchema.currentText())
+        table = str(self.dockwidget.comboBoxRouteTable.currentText())
+        self.dbRouteTableSettings[dbname+'.'+schema] = table
+        
+    
     def updateOpenNRWSchemaIndexChanged(self):
         """Reload Tables of OPEN NRW Schema"""
 
@@ -986,6 +1035,11 @@ class orientationMapsCreator:
             self.projectLayerList['route_psql'] = vl
             self.projectLayerList['tmp_route_table'] = args['tmp_route_table']
             
+            # set comboBoxRouteTable to this route
+            idx = self.dockwidget.comboBoxRouteTable.findText(args['tmp_route_table'])
+            if idx >= 0:
+                self.dockwidget.comboBoxRouteTable.setCurrentIndex(idx)
+            
             
             # Move layer to group
             #self.projectLayerPanel['route'].addLayer(vl)
@@ -1047,7 +1101,7 @@ class orientationMapsCreator:
         self.dockwidget.btnAnalyzeRoute.setEnabled(True)
         
         self.saveRoutePoints(args)
-        
+    
     
     def saveRoutePoints(self, args):
         """Retrieve route points for calculated route.
@@ -1174,6 +1228,191 @@ class orientationMapsCreator:
         
         stop = timeit.default_timer()
         print('saveRoutePoints time: ', stop - start)
+        
+    
+    def loadRoute(self):
+        """ Loads Route from database.
+        
+        """
+        
+        print "** loadRoute"
+        start = timeit.default_timer()
+        
+        #Prepare project if not yet done
+        if not 'root' in self.projectLayerPanel.keys():
+            self.prepareProject()
+            
+        #Clear previous route
+        #self.removeRoute()
+        #TODO check is already visualized; do nothing if so; remove previous and add if not
+        
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        
+        empties = []
+        for key in args.keys():
+            if not args[key]:
+                empties.append(key)
+        
+        if len(empties) > 0:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                'Following argument is not specified.\n' + ','.join(empties))
+            return
+        
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+            
+            version = Utils.getPgrVersion(con)
+            args['version'] = version
+            if (self.version!=version) :
+                QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                  'versions are different')
+
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            layerName = self.dockwidget.comboBoxRouteTable.currentText()
+            args['tmp_route_table'] = layerName
+            
+            # Specify tmp table in uri for loading in qgis as vector layer
+            uri = db.getURI()     
+            uri.setDataSource(args['results_schema'], layerName, "path_geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            
+            # Save to vector layer
+            vl = self.iface.addVectorLayer(uri.uri(), layerName, db.getProviderName())  
+            if not vl:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+                return
+            # Style layer
+            vl.loadNamedStyle(plugin_path + '/assets/styles/route.qml')
+            
+            
+            # Save layers
+            self.projectLayerList['route_psql'] = vl
+            self.projectLayerList['tmp_route_table'] = args['tmp_route_table']
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')
+        
+        stop = timeit.default_timer()
+        print('loadRoute time: ', stop - start)
+        
+        #Enable Analyze Route and Buffer Network Buttons
+        self.dockwidget.btnBufferNetwork.setEnabled(True)
+        self.dockwidget.btnAnalyzeRoute.setEnabled(True)
+        
+        self.loadRoutePoints(args)
+        
+        
+    def loadRoutePoints(self, args):
+        """Load route points for existing route.
+        
+        """
+        
+        print "** loadRoutePoints"
+        
+        start = timeit.default_timer()
+        
+        #Check if route layer exists in projectLayerList
+        if not 'tmp_route_table' in self.projectLayerList:
+            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Route layer does not exist.')
+            return
+        
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+                    
+            #Check if route layer exists in DB
+            if not True in [self.projectLayerList['tmp_route_table'] in t for t in db.list_geotables(args['results_schema'])]:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Route table does not exist.')
+                return
+            
+            args['tmp_vertice_table'] = args['tmp_route_table'] + '_vertices'
+            args['tmp_vertice_table_start'] = args['tmp_route_table'] + '_start'
+            args['tmp_vertice_table_end'] = args['tmp_route_table'] + '_end'
+            
+            
+            # Specify tmp table in uri
+            uri = db.getURI()     
+            uri.setDataSource(args['results_schema'], args['tmp_vertice_table'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            
+            
+            #Save to vector layer
+            vl = self.iface.addVectorLayer(uri.uri(), args['tmp_vertice_table'], db.getProviderName())  
+            if not vl:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+            self.projectLayerList['vertice_psql'] = vl
+            self.projectLayerList['tmp_vertice_table'] = args['tmp_vertice_table']          
+            
+            
+            # Save start pnt
+            uri_start = db.getURI()     
+            uri_start.setDataSource(args['results_schema'], args['tmp_vertice_table'], "geom", "seq = (SELECT min(seq) FROM "+ args['results_schema'] + "." + args['tmp_vertice_table'] +")", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            vl_start = self.iface.addVectorLayer(uri_start.uri(), args['tmp_vertice_table_start'], db.getProviderName())  
+            if not vl_start:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+            vl_start.loadNamedStyle(plugin_path + '/assets/styles/route_start_marker.qml')
+            self.projectLayerList['vertice_start_psql'] = vl_start
+            self.projectLayerList['tmp_vertice_table_start'] = args['tmp_vertice_table_start']
+            
+            
+            # Save end pnt
+            uri_end = db.getURI()     
+            uri_end.setDataSource(args['results_schema'], args['tmp_vertice_table'], "geom", "seq = (SELECT max(seq) FROM "+ args['results_schema'] + "." + args['tmp_vertice_table'] +")", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            vl_end = self.iface.addVectorLayer(uri_end.uri(), args['tmp_vertice_table_end'], db.getProviderName())  
+            if not vl_end:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+            vl_end.loadNamedStyle(plugin_path + '/assets/styles/route_end_marker.qml')
+            self.projectLayerList['vertice_end_psql'] = vl_end
+            self.projectLayerList['tmp_vertice_table_end'] = args['tmp_vertice_table_end']
+            
+            self.moveRouteLayers()            
+            
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')
+        
+        stop = timeit.default_timer()
+        print('loadRoutePoints time: ', stop - start)
+        
+        
     
     def removeRoute(self):
         """Remove Route from layers and file system.
@@ -2212,7 +2451,9 @@ class orientationMapsCreator:
         if 'comboBoxEdgesTable' in controls:
             args['edge_table'] = self.dockwidget.comboBoxEdgesTable.currentText()
         if 'comboBoxVerticesTable' in controls:
-            args['vertice_table'] = self.dockwidget.comboBoxVerticesTable.currentText()    
+            args['vertice_table'] = self.dockwidget.comboBoxVerticesTable.currentText()
+        #if 'comboBoxRouteTable' in controls:
+            #args['tmp_route_table'] = self.dockwidget.comboBoxRouteTable.currentText()    
         if 'lineEditGeometryColumn' in controls:
             args['geometry'] = self.dockwidget.lineEditGeometryColumn.text()
         if 'lineEditIDColumn' in controls:
@@ -2233,6 +2474,12 @@ class orientationMapsCreator:
 
         if 'lineEditMaxClazz' in controls:
             args['max_clazz'] = self.dockwidget.lineEditMaxClazz.text()
+            
+        if 'lineEditApproxRndDist' in controls:
+            args['approx_rnd_dist'] = self.dockwidget.lineEditApproxRndDist.text()
+            
+        if 'checkBoxWithinApproxRndDist' in controls:
+            args['within_approx_rnd_dist'] = str(self.dockwidget.checkBoxWithinApproxRndDist.isChecked()).lower()
             
         if 'lineEditSelectSourceID' in controls:
             args['source_id'] = self.dockwidget.lineEditSelectSourceID.text()
@@ -2323,6 +2570,9 @@ class orientationMapsCreator:
             self.dockwidget.comboBoxVerticesTable.setCurrentIndex(idx) #reset to previous selection
         else:
             self.dockwidget.comboBoxVerticesTable.setCurrentIndex(0)
+            
+        #comboBoxRoutesTable > no default
+        self.dockwidget.comboBoxVerticesTable.setCurrentIndex(0)
 
         if 'lineEditGeometryColumn' in controls:
             self.dockwidget.lineEditGeometryColumn.setText('geom')
@@ -2344,6 +2594,12 @@ class orientationMapsCreator:
         if 'lineEditMaxClazz' in controls:
             self.dockwidget.lineEditMaxClazz.setText('50')
             #self.dockwidget.lineEditSelectSourceID.insert(self.getRandomID())
+            
+        if 'lineEditApproxRndDist' in controls:
+            self.dockwidget.lineEditApproxRndDist.setText('10')
+            
+        if 'checkBoxWithinApproxRndDist' in controls:
+            self.dockwidget.checkBoxWithinApproxRndDist.setChecked(False)
             
         if 'lineEditSelectSourceID' in controls:
             self.dockwidget.lineEditSelectSourceID.setText('437021')
@@ -2466,6 +2722,39 @@ class orientationMapsCreator:
                 self.targetIdVertexMarker.setCenter(geom.asPoint())
                 self.targetIdVertexMarker.setVisible(True)
                 self.dockwidget.btnSelectTargetID.click()
+        else:
+            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'isEdgeBase.')
+        Utils.refreshMapCanvas(self.iface.mapCanvas())
+        
+            
+    def setRandomSourceId(self):
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        if not function.isEdgeBase():
+            result, id, wkt = self.findRandomNode(args)
+            if result:
+                self.dockwidget.lineEditSelectSourceID.setText(str(id))
+                geom = QgsGeometry().fromWkt(wkt)
+                self.sourceIdVertexMarker.setCenter(geom.asPoint())
+                self.sourceIdVertexMarker.setVisible(True)
+        else:
+            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'isEdgeBase.')
+        Utils.refreshMapCanvas(self.iface.mapCanvas())
+        
+        
+    def setRandomTargetId(self):
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        if not function.isEdgeBase():            
+            if self.dockwidget.checkBoxWithinApproxRndDist.isChecked():
+                result, id, wkt = self.findRandomNodeWithinDist(args)
+            else:
+                result, id, wkt = self.findRandomNode(args)
+            if result:
+                self.dockwidget.lineEditSelectTargetID.setText(str(id))
+                geom = QgsGeometry().fromWkt(wkt)
+                self.targetIdVertexMarker.setCenter(geom.asPoint())
+                self.targetIdVertexMarker.setVisible(True)
         else:
             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'isEdgeBase.')
         Utils.refreshMapCanvas(self.iface.mapCanvas())
@@ -2650,6 +2939,141 @@ class orientationMapsCreator:
             if db and db.con:
                 db.con.close()
                 
+    
+    def findRandomNode(self, args):
+        
+        print "** findRandomNode"
+        
+        canvasCrs = Utils.getDestinationCrs(self.iface.mapCanvas())
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            
+            #srid, geomType = self.getSridAndGeomType(con, args)
+            #srid, geomType = Utils.getSridAndGeomType(con, args['edge_table'], args['geometry'])
+            
+            #srid, geomType = Utils.getSridAndGeomType(con, '%(edge_table)s' % args, '%(geometry)s' % args)
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            if self.iface.mapCanvas().hasCrsTransformEnabled():
+                layerCrs = QgsCoordinateReferenceSystem()
+                Utils.createFromSrid(layerCrs, srid)
+            
+            args['canvas_srid'] = Utils.getCanvasSrid(canvasCrs)
+            args['srid'] = srid
+            args['clazz'] = 'clazz'
+            
+            Utils.setStartPoint(geomType, args)
+            Utils.setEndPoint(geomType, args)
+            #Utils.setTransformQuotes(args)
+            Utils.setTransformQuotes(args, srid, args['canvas_srid'])
+            
+            # Getting nearest source
+            query = """
+                SELECT e.%(source)s,
+                ST_AsText(%(transform_s)s v.geom %(transform_e)s)
+                FROM %(edge_schema)s.%(vertice_table)s as v, %(edge_schema)s.%(edge_table)s as e
+                WHERE
+                    v.id = e.%(source)s AND e.clazz <= %(max_clazz)s 
+                    ORDER BY random()
+                    LIMIT 1""" % args
+                    
+            #QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % query)
+            
+            ##Utils.logMessage(query1)
+            cur = con.cursor()
+            cur.execute(query)
+            row = cur.fetchone()
+            node = None
+            wkt = None
+            if row:
+                node = row[0]
+                wkt = row[1]
+            
+            return True, node, wkt
+            
+        except psycopg2.DatabaseError, e:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            return False, None, None
+            
+        finally:
+            if db and db.con:
+                db.con.close()
+                
+                
+    def findRandomNodeWithinDist(self, args):
+        
+        print "** findRandomNodeWithinDist" 
+        
+        canvasCrs = Utils.getDestinationCrs(self.iface.mapCanvas())
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            
+            #srid, geomType = self.getSridAndGeomType(con, args)
+            #srid, geomType = Utils.getSridAndGeomType(con, args['edge_table'], args['geometry'])
+            
+            #srid, geomType = Utils.getSridAndGeomType(con, '%(edge_table)s' % args, '%(geometry)s' % args)
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            if self.iface.mapCanvas().hasCrsTransformEnabled():
+                layerCrs = QgsCoordinateReferenceSystem()
+                Utils.createFromSrid(layerCrs, srid)
+            
+            args['canvas_srid'] = Utils.getCanvasSrid(canvasCrs)
+            args['srid'] = srid
+            args['clazz'] = 'clazz'
+            
+            Utils.setStartPoint(geomType, args)
+            Utils.setEndPoint(geomType, args)
+            #Utils.setTransformQuotes(args)
+            Utils.setTransformQuotes(args, srid, args['canvas_srid'])
+            
+            args['approx_rnd_dist_min'] = str((int(args['approx_rnd_dist']) - 1)*1000)
+            args['approx_rnd_dist_max'] = str((int(args['approx_rnd_dist']) + 1)*1000)
+            
+            # Getting nearest source
+            query = """
+                WITH source_node as (
+                    SELECT *
+                    FROM %(edge_schema)s.%(edge_table)s as e
+                    WHERE e.%(source)s = %(source_id)s
+                )
+                SELECT v.id, ST_AsText(%(transform_s)s v.geom %(transform_e)s)
+                FROM %(edge_schema)s.%(vertice_table)s as v, source_node as s
+                WHERE
+                    ST_Distance(v.geom::geography, s.geom::geography) >= %(approx_rnd_dist_min)s
+                    AND
+                    ST_Distance(v.geom::geography, s.geom::geography) <= %(approx_rnd_dist_max)s
+                ORDER BY random()
+                LIMIT 1""" % args
+                    
+            #QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % query)
+            
+            ##Utils.logMessage(query1)
+            cur = con.cursor()
+            cur.execute(query)
+            row = cur.fetchone()
+            node = None
+            wkt = None
+            if row:
+                node = row[0]
+                wkt = row[1]
+            
+            return True, node, wkt
+            
+        except psycopg2.DatabaseError, e:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            return False, None, None
+            
+        finally:
+            if db and db.con:
+                db.con.close()
+                
 
     def loadSettings(self):
         
@@ -2675,6 +3099,10 @@ class orientationMapsCreator:
         idx = self.dockwidget.comboBoxVerticesTable.findText(Utils.getStringValue(settings, '/orientationMapsCreator/vertices_table', ''))
         if idx >= 0:
             self.dockwidget.comboBoxVerticesTable.setCurrentIndex(idx)
+            
+        idx = self.dockwidget.comboBoxRouteTable.findText(Utils.getStringValue(settings, '/orientationMapsCreator/route_table', ''))
+        if idx >= 0:
+            self.dockwidget.comboBoxRouteTable.setCurrentIndex(idx)
         
         self.dockwidget.lineEditGeometryColumn.setText(Utils.getStringValue(settings, '/orientationMapsCreator/sql/geometry', 'geom'))
         self.dockwidget.lineEditIDColumn.setText(Utils.getStringValue(settings, '/orientationMapsCreator/sql/id', 'id'))
@@ -2684,12 +3112,13 @@ class orientationMapsCreator:
         self.dockwidget.lineEditReverseCostColumn.setText(Utils.getStringValue(settings, '/orientationMapsCreator/sql/reverse_cost', 'reverse_cost'))
         
         self.dockwidget.lineEditMaxClazz.setText(Utils.getStringValue(settings, '/orientationMapsCreator/max_clazz', '50'))
+        self.dockwidget.lineEditApproxRndDist.setText(Utils.getStringValue(settings, '/orientationMapsCreator/approx_rnd_dist', '10'))
         self.dockwidget.lineEditSelectSourceID.setText(Utils.getStringValue(settings, '/orientationMapsCreator/source_id', '437021'))
         self.dockwidget.lineEditSelectTargetID.setText(Utils.getStringValue(settings, '/orientationMapsCreator/target_id', '366598'))
 
         self.dockwidget.checkBoxDirected.setChecked(Utils.getBoolValue(settings, '/orientationMapsCreator/directed', False))
         self.dockwidget.checkBoxHasReverseCost.setChecked(Utils.getBoolValue(settings, '/orientationMapsCreator/has_reverse_cost', False))
-       
+        self.dockwidget.checkBoxWithinApproxRndDist.setChecked(Utils.getBoolValue(settings, '/orientationMapsCreator/within_approx_rnd_dist', False))
         
         # OPEN NRW
         idx = self.dockwidget.comboBoxOpenNRWSchema.findText(Utils.getStringValue(settings, '/orientationMapsCreator/open_nrw_schema', ''))
@@ -2729,6 +3158,7 @@ class orientationMapsCreator:
         
         settings.setValue('/orientationMapsCreator/edges_table', self.dockwidget.comboBoxEdgesTable.currentText())
         settings.setValue('/orientationMapsCreator/vertices_table', self.dockwidget.comboBoxVerticesTable.currentText())
+        settings.setValue('/orientationMapsCreator/route_table', self.dockwidget.comboBoxRouteTable.currentText())
         settings.setValue('/orientationMapsCreator/sql/geometry', self.dockwidget.lineEditGeometryColumn.text())
 
         settings.setValue('/orientationMapsCreator/sql/id', self.dockwidget.lineEditIDColumn.text())
@@ -2738,11 +3168,13 @@ class orientationMapsCreator:
         settings.setValue('/orientationMapsCreator/sql/reverse_cost', self.dockwidget.lineEditReverseCostColumn.text())
 
         settings.setValue('/orientationMapsCreator/max_clazz', self.dockwidget.lineEditMaxClazz.text())
+        settings.setValue('/orientationMapsCreator/approx_rnd_dist', self.dockwidget.lineEditApproxRndDist.text())
         settings.setValue('/orientationMapsCreator/source_id', self.dockwidget.lineEditSelectSourceID.text())
         settings.setValue('/orientationMapsCreator/target_id', self.dockwidget.lineEditSelectTargetID.text())
 
         settings.setValue('/orientationMapsCreator/directed', self.dockwidget.checkBoxDirected.isChecked())
         settings.setValue('/orientationMapsCreator/has_reverse_cost', self.dockwidget.checkBoxHasReverseCost.isChecked())
+        settings.setValue('/orientationMapsCreator/within_approx_rnd_dist', self.dockwidget.checkBoxWithinApproxRndDist.isChecked())
         
         # OPEN NRW
         settings.setValue('/orientationMapsCreator/open_nrw_schema', self.dockwidget.comboBoxOpenNRWSchema.currentText())
@@ -2765,8 +3197,6 @@ class orientationMapsCreator:
         
         if not self.pluginIsActive:
             self.pluginIsActive = True
-            
-            print "** STARTING orientationMapsCreator"
 
             # dockwidget may not exist if:
             #    first run of plugin

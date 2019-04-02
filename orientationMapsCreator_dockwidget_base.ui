@@ -48,9 +48,9 @@
        <property name="geometry">
         <rect>
          <x>0</x>
-         <y>-720</y>
+         <y>-637</y>
          <width>462</width>
-         <height>1906</height>
+         <height>2026</height>
         </rect>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout">
@@ -318,27 +318,7 @@
               <string>Route Attributes</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_4">
-              <item row="1" column="0">
-               <widget class="QLabel" name="lblSelectSourceID">
-                <property name="text">
-                 <string>Source ID</string>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="1">
-               <widget class="QLineEdit" name="lineEditSelectTargetID"/>
-              </item>
-              <item row="1" column="1">
-               <widget class="QLineEdit" name="lineEditSelectSourceID"/>
-              </item>
-              <item row="2" column="0">
-               <widget class="QLabel" name="lblSelectTragetID">
-                <property name="text">
-                 <string>Traget ID</string>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="2">
+              <item row="2" column="2">
                <widget class="QToolButton" name="btnSelectSourceID">
                 <property name="text">
                  <string>...</string>
@@ -353,7 +333,27 @@
                 </property>
                </widget>
               </item>
-              <item row="2" column="2">
+              <item row="2" column="0">
+               <widget class="QLabel" name="lblSelectSourceID">
+                <property name="text">
+                 <string>Source ID</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QLineEdit" name="lineEditSelectTargetID"/>
+              </item>
+              <item row="2" column="1">
+               <widget class="QLineEdit" name="lineEditSelectSourceID"/>
+              </item>
+              <item row="3" column="0">
+               <widget class="QLabel" name="lblSelectTragetID">
+                <property name="text">
+                 <string>Traget ID</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="2">
                <widget class="QToolButton" name="btnSelectTargetID">
                 <property name="text">
                  <string>...</string>
@@ -368,8 +368,8 @@
                 </property>
                </widget>
               </item>
-              <item row="1" column="3">
-               <widget class="QToolButton" name="btnSelectRandomSource">
+              <item row="3" column="3">
+               <widget class="QToolButton" name="btnSelectRandomTarget">
                 <property name="text">
                  <string>...</string>
                 </property>
@@ -381,7 +381,7 @@
                </widget>
               </item>
               <item row="2" column="3">
-               <widget class="QToolButton" name="btnSelectRandomTarget">
+               <widget class="QToolButton" name="btnSelectRandomSource">
                 <property name="text">
                  <string>...</string>
                 </property>
@@ -401,6 +401,23 @@
               </item>
               <item row="0" column="1">
                <widget class="QLineEdit" name="lineEditMaxClazz"/>
+              </item>
+              <item row="1" column="0">
+               <widget class="QLabel" name="lblApproxRndDist">
+                <property name="text">
+                 <string>Approx Rnd Dist</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QLineEdit" name="lineEditApproxRndDist"/>
+              </item>
+              <item row="1" column="2">
+               <widget class="QCheckBox" name="checkBoxWithinApproxRndDist">
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
               </item>
              </layout>
             </widget>
@@ -436,6 +453,39 @@
                <widget class="QPushButton" name="btnRemoveRoute">
                 <property name="text">
                  <string>Remove Route</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QGroupBox" name="groupBoxLoadRoute">
+             <property name="title">
+              <string>Load Route</string>
+             </property>
+             <layout class="QGridLayout" name="gridLayout_2">
+              <item row="0" column="2">
+               <widget class="QToolButton" name="btnLoadRoute">
+                <property name="text">
+                 <string>Load</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QComboBox" name="comboBoxRouteTable">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="0">
+               <widget class="QLabel" name="lblRouteTable">
+                <property name="text">
+                 <string>Route Table</string>
                 </property>
                </widget>
               </item>

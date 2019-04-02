@@ -14,6 +14,7 @@ class FunctionBase(object):
         'lblResultsSchema',     'comboBoxResultsSchema',
         'lblEdgesSchema',       'comboBoxEdgesSchema',
         'lblEdgesTable',        'comboBoxEdgesTable',
+        'lblRouteTable',        'comboBoxRouteTable',
         'lblVerticesTable',     'comboBoxVerticesTable',
         'lblGeometryColumn',    'lineEditGeometryColumn',
         'lblIDColumn',          'lineEditIDColumn',
@@ -30,7 +31,8 @@ class FunctionBase(object):
         ]
     commonBoxes = [
         'checkBoxDirected',
-        'checkBoxHasReverseCost'
+        'checkBoxHasReverseCost',
+        'checkBoxWithinApproxRndDist'
         ]
 
 
