@@ -12,6 +12,69 @@ Following database specifications are required (see details for setup [here](#os
 - use [pgr_analyzeOneway](https://docs.pgrouting.org/latest/en/pgr_analyzeOneWay.html?highlight=pgr_createtopology) to fill the vertices columns
 - make sure that all geometry columns are consistently named `geom`
 
+
+## Workflow
+
+### General Workflow
+
+
+### Code Workflow
+
+#### Functions that run on QGIS startup
+
+1. function `__init__` is called (i.e. *constructor*)
+2. function `initGui` is called to setup the QGIS plugin GUI, i.e. *orientationMapsCreator_dockwidget_base.ui*
+	- relation between buttons and comboBoxes and the particular functions are set up
+	- function `reloadConnections` initializes database connection
+	- function `loadSettings` loads previously saved settings of the plugin
+3. when plugin is started: function `run` is called
+
+#### Functions based on Interation
+
+
+-  **Database** configuration:
+	- all selections are globally stored in `self.*` variables
+	- selection of a *database*: connection to DB in established and entries for *schemas* and *tables* are loaded; previous selections of *schemas* and *tables* are restored
+	- selection of a *results schema*: this schema is used to permanently store all the information that will be calculated, e.g. *route*, *network*, *regions*
+
+**Route**
+- **Dataset** configuration: schema and tables from where the route will be calculated, i.e. osm2po
+	- selection of a *schema*: entries for *tables* are loaded; previous selections of *tables* are restored
+	- selection of *tables* that contain the edges and vertices
+- **Edges Columns** configuration: name the columns for the particular data, which will be used by the *pgr_dijkstra* function to calculate the route
+- **Route Attributes** configuration:
+	- *max. clazz* specifies the maximal clazz of edges (see osm2po) that is considered for calculating the route, e.g. to only calculate routes via major roads
+	- selection for source and target of route; click (+) button and select node on map; only nodes of particular *max. clazz* can be selected
+	- selection of random source and target node (considering max. clazz); click the arrows button
+	- *Approx Rnd Dist*: if checked, the target node will be randomly selected in an approximate euclidean distance to the source node
+- **Calculate Route**
+	- *Preview Route* calculates a route and just displays on the map
+	- *Clear Preview* removes previewed route
+	- *Save Route* calculates a route, saved it to the database in the *Results Schema*, and adds it to the map; the route is automatically styled wrt a QGIS stylesheet (see `/assets/styles/*`)
+	- *Remove Route* removes the route from the Database and the map
+- **Load Route**: use this to load an existing route and add it to the map
+	- *Route Table* lists all database tables in the results schema
+- **Analyze Route**:
+	- *Buffer Network* buffers the network (i.e. *edges table*) by a certain distance (here: length of route); saves the result the the database and adds it to the map
+	- *Analyze Route*
+
+**OPEN.NRW**
+- **Dataset** configuration: schema and tables from where administrative regions will be loaded; here: data from the open.nrw platform, that were save in a database
+	- selection of a *schema*: entries for *tables* are loaded; previous selections of *tables* are restored
+	- selection of *tables* that contain the administrative regions
+- **Calculate**
+	- *Get Environmental Regions* TODO
+	- *Add Network within Regions* TODO
+	- *Get Andministrative Regions* TODO
+
+**OSM**
+- **Dataset** configuration: schema and tables from where osm data are loaded; here: data from OSM, that were save in a database using the *osm2pgsql* tool
+	- selection of a *schema*: entries for *tables* are loaded; previous selections of *tables* are restored
+	- selection of *tables*, i.e. tables for points, lines, and polygons data
+- **Select Features**: functions to run selection of particular OI feature candidates; separate functions for points, lines, and polygons
+
+
+
 ## Detailed description
 
 ### OSM2PO
