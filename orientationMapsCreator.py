@@ -317,6 +317,14 @@ class orientationMapsCreator:
         QObject.connect(self.dockwidget.comboBoxOSMPolygonsTable, SIGNAL("currentIndexChanged(const QString&)"), self.updateOSMPolygonsIndexChanged)
         
         
+        QObject.connect(self.dockwidget.btnSelectOSMPoints, SIGNAL("clicked()"), self.selectOSMPoints)
+        QObject.connect(self.dockwidget.btnSelectOSMLines, SIGNAL("clicked()"), self.selectOSMLines)
+        QObject.connect(self.dockwidget.btnSelectOSMPolygons, SIGNAL("clicked()"), self.selectOSMPolygons)
+        
+        
+        
+        
+        
         self.functions = {}     #Route Calculation Functions: here only dijkstra
         for funcfname in self.SUPPORTED_FUNCTIONS:
             # import the function
@@ -1680,6 +1688,8 @@ class orientationMapsCreator:
             return
         
         db = None
+        
+        # create SQL table
         try:
             dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
             db = self.connectionsDB[dbname].connect()
@@ -1737,7 +1747,27 @@ class orientationMapsCreator:
             cur.execute(self.cleanQuery(query_analyze_dps))
             con.commit()
             
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            if str(e).__contains__("my_route_get_dp"):
+                print "function does not exist error"
+                #create function
+                self.createMissingFkt("my_route_get_dp")
+                
+                #run bufferNetwork() again
+                self.dockwidget.btnAnalyzeRoute.click()
+            else:  
+                QApplication.restoreOverrideCursor()
+                QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+                
             
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        # add QGIS layer
+        try:
             # Specify tmp table in uri
             uri = db.getURI()     
             uri.setDataSource(args['results_schema'], args['tmp_vertice_table'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
@@ -1804,6 +1834,135 @@ class orientationMapsCreator:
 
         stop = timeit.default_timer()
         print('analyzeRoute time: ', stop - start)
+        
+        self.bufferDPs()
+   
+        
+    def bufferDPs(self):
+        
+        print "** bufferDPs"
+        
+        start = timeit.default_timer()
+                
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        
+        empties = []
+        for key in args.keys():
+            if not args[key]:
+                empties.append(key)
+        
+        if len(empties) > 0:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                'Following argument is not specified.\n' + ','.join(empties))
+            return
+        
+        # create DB table
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+            
+            version = Utils.getPgrVersion(con)
+            args['version'] = version
+            if (self.version!=version) :
+                QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                  'versions are different')
+
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            
+            args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            args['tmp_vertice_table'] = self.projectLayerList['tmp_vertice_table']
+            args['tmp_vertice_table_buffer_dps'] = args['tmp_route_table'] + '_buffer_dps'
+            
+            #Calculate reference regions for DPs; predefined distance here = 100m            
+            query_buffer_dps = """WITH intersection as (
+                    WITH buffer as (
+                        SELECT v.id, ST_Buffer(v.geom::geography, 100) as geom
+                        FROM %(results_schema)s.%(tmp_vertice_table)s as v
+                        WHERE dp_type > 0 
+                    )
+                    SELECT v.id, ST_Intersection(v.geom::geometry, e.geom) as geom 
+                    FROM buffer as v, %(results_schema)s.%(tmp_route_table)s as e
+                )
+                SELECT v.id, ST_Union(v.geom) as geom INTO %(results_schema)s.%(tmp_vertice_table_buffer_dps)s
+                FROM intersection as v
+                GROUP BY v.id
+                ORDER BY v.id""" % args
+                
+            print "analyzeRoute query_buffer_dps: " + query_buffer_dps
+            
+            Utils.logMessage('Calculate reference regions of DPs:\n' + query_buffer_dps)
+            cur.execute(self.cleanQuery(query_buffer_dps))
+            con.commit()
+            
+            # Specify tmp table in uri
+            uri = db.getURI()     
+            uri.setDataSource(args['results_schema'], args['tmp_vertice_table_buffer_dps'], "geom", "", "id")     #path_geom holds route segments in correct subsequent order != geom
+            
+            
+            # Save layer as buffer_dps
+            vl_buffer_dps = self.iface.addVectorLayer(uri.uri(), args['tmp_vertice_table_buffer_dps'], db.getProviderName())  
+            if not vl_buffer_dps:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+            #vl_buffer_dps.loadNamedStyle(plugin_path + '/assets/styles/route_junctions.qml')
+            self.projectLayerList['vertice_junctions_psql'] = vl_buffer_dps
+            self.projectLayerList['tmp_vertice_table_buffer_dps'] = args['tmp_vertice_table_buffer_dps']
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+                
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)      
+
+
+        # add QGIS layer
+        try: 
+            # Specify tmp table in uri
+            uri = db.getURI()     
+            uri.setDataSource(args['results_schema'], args['tmp_vertice_table_buffer_dps'], "geom", "", "id")     #path_geom holds route segments in correct subsequent order != geom
+            
+            
+            # Save layer as buffer_dps
+            vl_buffer_dps = self.iface.addVectorLayer(uri.uri(), args['tmp_vertice_table_buffer_dps'], db.getProviderName())  
+            if not vl_buffer_dps:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+            #vl_buffer_dps.loadNamedStyle(plugin_path + '/assets/styles/route_junctions.qml')
+            self.projectLayerList['vertice_junctions_psql'] = vl_buffer_dps
+            self.projectLayerList['tmp_vertice_table_buffer_dps'] = args['tmp_vertice_table_buffer_dps']
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+                
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')  
+                    
+
+        stop = timeit.default_timer()
+        print('bufferDPs time: ', stop - start)
+        
         
 
     def getEnvironmentalRegions(self):
@@ -2147,6 +2306,265 @@ class orientationMapsCreator:
         print('getAdministrativeRegions time: ', stop - start)
 
   
+    def selectOSMPoints(self):
+        """Functions to select points features from OSM data
+        
+        """
+        
+        print "** selectOSMPoints"
+        
+        start = timeit.default_timer()
+        
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        
+        empties = []
+        for key in args.keys():
+            if not args[key]:
+                empties.append(key)
+        
+        if len(empties) > 0:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                'Following argument is not specified.\n' + ','.join(empties))
+            return
+        
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+            
+            version = Utils.getPgrVersion(con)
+            args['version'] = version
+            if (self.version!=version) :
+                QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                  'versions are different')
+
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            
+            args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            
+            #SQL Query
+#             query = """SELECT * FROM %(results_schema)s.%(tmp_route_table)s""" % args
+#                 
+#                 
+#             Utils.logMessage('Query:\n' + query)
+#             cur.execute(self.cleanQuery(query))
+#             con.commit()
+#             
+#             
+#             # Specify tmp table in uri
+#             uri = db.getURI()     
+#             uri.setDataSource(args['results_schema'], args['tmp_route_table'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
+#             
+#             
+#             # Save layer as junctions
+#             vl = self.iface.addVectorLayer(uri.uri(), args['tmp_vertice_table_junctions'], db.getProviderName())  
+#             if not vl:
+#                 QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+#             vl.loadNamedStyle(plugin_path + '/assets/styles/route.qml')
+#             self.projectLayerList['route_table_psql'] = vl
+#             self.projectLayerList['tmp_route_table'] = args['tmp_route_table']
+            
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')
+        
+        stop = timeit.default_timer()
+        print('selectOSMPoints time: ', stop - start)
+        
+        
+    def selectOSMLines(self):
+        """Functions to select points features from OSM data
+        
+        """
+        
+        print "** selectOSMLines"
+        
+        start = timeit.default_timer()
+        
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        
+        empties = []
+        for key in args.keys():
+            if not args[key]:
+                empties.append(key)
+        
+        if len(empties) > 0:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                'Following argument is not specified.\n' + ','.join(empties))
+            return
+        
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+            
+            version = Utils.getPgrVersion(con)
+            args['version'] = version
+            if (self.version!=version) :
+                QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                  'versions are different')
+
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            
+            args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            
+            #SQL Query
+#             query = """SELECT * FROM %(results_schema)s.%(tmp_route_table)s""" % args
+#                 
+#                 
+#             Utils.logMessage('Query:\n' + query)
+#             cur.execute(self.cleanQuery(query))
+#             con.commit()
+#             
+#             
+#             # Specify tmp table in uri
+#             uri = db.getURI()     
+#             uri.setDataSource(args['results_schema'], args['tmp_route_table'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
+#             
+#             
+#             # Save layer as junctions
+#             vl = self.iface.addVectorLayer(uri.uri(), args['tmp_vertice_table_junctions'], db.getProviderName())  
+#             if not vl:
+#                 QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+#             vl.loadNamedStyle(plugin_path + '/assets/styles/route.qml')
+#             self.projectLayerList['route_table_psql'] = vl
+#             self.projectLayerList['tmp_route_table'] = args['tmp_route_table']
+            
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')
+        
+        stop = timeit.default_timer()
+        print('selectOSMLines time: ', stop - start)
+        
+        
+    def selectOSMPolygons(self):
+        """Functions to select points features from OSM data
+        
+        """
+        
+        print "** selectOSMPolygons"
+        
+        start = timeit.default_timer()
+        
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        
+        empties = []
+        for key in args.keys():
+            if not args[key]:
+                empties.append(key)
+        
+        if len(empties) > 0:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                'Following argument is not specified.\n' + ','.join(empties))
+            return
+        
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+            
+            version = Utils.getPgrVersion(con)
+            args['version'] = version
+            if (self.version!=version) :
+                QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                  'versions are different')
+
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            
+            args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            
+            #SQL Query
+#             query = """SELECT * FROM %(results_schema)s.%(tmp_route_table)s""" % args
+#                 
+#                 
+#             Utils.logMessage('Query:\n' + query)
+#             cur.execute(self.cleanQuery(query))
+#             con.commit()
+#             
+#             
+#             # Specify tmp table in uri
+#             uri = db.getURI()     
+#             uri.setDataSource(args['results_schema'], args['tmp_route_table'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
+#             
+#             
+#             # Save layer as junctions
+#             vl = self.iface.addVectorLayer(uri.uri(), args['tmp_vertice_table_junctions'], db.getProviderName())  
+#             if not vl:
+#                 QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+#             vl.loadNamedStyle(plugin_path + '/assets/styles/route.qml')
+#             self.projectLayerList['route_table_psql'] = vl
+#             self.projectLayerList['tmp_route_table'] = args['tmp_route_table']
+            
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')
+        
+        stop = timeit.default_timer()
+        print('selectOSMPolygons time: ', stop - start)
+        
+        
+        
     def genericDatabaseFunction(self):
         """Generic function with basic code for every function processing the datbase
         
