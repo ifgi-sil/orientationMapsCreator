@@ -305,8 +305,8 @@ class orientationMapsCreator:
         QObject.connect(self.dockwidget.comboBoxOpenNRWSchema, SIGNAL("currentIndexChanged(const QString&)"), self.updateOpenNRWSchemaIndexChanged)
         QObject.connect(self.dockwidget.comboBoxOpenNRWDLM, SIGNAL("currentIndexChanged(const QString&)"), self.updateOpenNRWDLMIndexChanged)
         
-        QObject.connect(self.dockwidget.btnGetEnvironmentalRegions, SIGNAL("clicked()"), self.getEnvironmentalRegions)
-        QObject.connect(self.dockwidget.btnAddRegionsNetwork, SIGNAL("clicked()"), self.addRegionsNetwork)
+        QObject.connect(self.dockwidget.btnGetUrbanAreas, SIGNAL("clicked()"), self.getUrbanAreas)
+        #QObject.connect(self.dockwidget.btnAddUrbanAreasNetwork, SIGNAL("clicked()"), self.addUrbanAreasNetwork)
         QObject.connect(self.dockwidget.btnGetAdministrativeRegions, SIGNAL("clicked()"), self.getAdministrativeRegions)
         
         
@@ -316,7 +316,8 @@ class orientationMapsCreator:
         QObject.connect(self.dockwidget.comboBoxOSMLinesTable, SIGNAL("currentIndexChanged(const QString&)"), self.updateOSMLinesIndexChanged)
         QObject.connect(self.dockwidget.comboBoxOSMPolygonsTable, SIGNAL("currentIndexChanged(const QString&)"), self.updateOSMPolygonsIndexChanged)
         
-        
+        QObject.connect(self.dockwidget.btnGetAdministrativeRegions, SIGNAL("clicked()"), self.getAdministrativeRegions)
+        QObject.connect(self.dockwidget.btnGetEnvironmentalRegions, SIGNAL("clicked()"), self.getEnvironmentalRegions)
         QObject.connect(self.dockwidget.btnSelectOSMPoints, SIGNAL("clicked()"), self.selectOSMPoints)
         QObject.connect(self.dockwidget.btnSelectOSMLines, SIGNAL("clicked()"), self.selectOSMLines)
         QObject.connect(self.dockwidget.btnSelectOSMPolygons, SIGNAL("clicked()"), self.selectOSMPolygons)
@@ -861,8 +862,8 @@ class orientationMapsCreator:
         self.dockwidget.btnSaveRoute.click()
         self.dockwidget.btnBufferNetwork.click()
         self.dockwidget.btnAnalyzeRoute.click() 
-        self.dockwidget.btnGetEnvironmentalRegions.click() 
-        self.dockwidget.btnAddRegionsNetwork.click() 
+        self.dockwidget.btnGetUrbanAreas.click() 
+        #self.dockwidget.btnAddUrbanAreasNetwork.click() 
         
         stop = timeit.default_timer()
         
@@ -1965,12 +1966,12 @@ class orientationMapsCreator:
         
         
 
-    def getEnvironmentalRegions(self):
-        """Retrieve urban areas from the OpenNRW dataset within sepcified buffer around the route.
+    def getUrbanAreas(self):
+        """Retrieve urban areas from the OPEN.NRW dataset within specified buffer around the route.
         
         """
         
-        print "** getEnvironmentalRegions"
+        print "** getUrbanAreas"
         
         start = timeit.default_timer()
                 
@@ -2022,7 +2023,7 @@ class orientationMapsCreator:
                     WHERE t.id = a.id;""" % args
                             
             #QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(),query)
-            print "getEnvironmentalRegions query: " + query
+            print "getUrbanAreas query: " + query
             
             Utils.logMessage('Query:\n' + query)
             cur.execute(self.cleanQuery(query))
@@ -2058,7 +2059,7 @@ class orientationMapsCreator:
                 self.createMissingFkt("my_regions_route_intersect_buffer")
                 
                 #run bufferNetwork() again
-                self.dockwidget.btnGetEnvironmentalRegions.click()
+                self.dockwidget.btnGetUrbanAreas.click()
             else:  
                 QApplication.restoreOverrideCursor()
                 QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
@@ -2078,15 +2079,16 @@ class orientationMapsCreator:
                         'server closed the connection unexpectedly')
         
         stop = timeit.default_timer()
-        print('getEnvironmentalRegions time: ', stop - start)
+        print('getUrbanAreas time: ', stop - start)
+        self.addUrbanAreasNetwork()
         
     
-    def addRegionsNetwork(self):
+    def addUrbanAreasNetwork(self):
         """Merge network within the regions into the network dataset.
         
         """
         
-        print "** addRegionsNetwork"
+        print "** addUrbanAreasNetwork"
         
         start = timeit.default_timer()
                 
@@ -2131,7 +2133,7 @@ class orientationMapsCreator:
                     WHERE ST_Intersects(ST_Transform(s.geom, 25832), r.geom) AND 
                         s.id not in (SELECT id FROM %(results_schema)s.%(tmp_route_table_network)s)""" % args
                 
-            print "addRegionsNetwork query: " + query
+            print "addUrbanAreasNetwork query: " + query
                 
             Utils.logMessage('Query:\n' + query)
             cur.execute(self.cleanQuery(query))
@@ -2161,7 +2163,7 @@ class orientationMapsCreator:
                         'server closed the connection unexpectedly')
         
         stop = timeit.default_timer()
-        print('addRegionsNetwork time: ', stop - start)
+        print('addUrbanAreasNetwork time: ', stop - start)
 
     
     def getAdministrativeRegions(self):
@@ -2203,33 +2205,37 @@ class orientationMapsCreator:
             srid, geomType = Utils.getSridAndGeomType(con, args)
             
             args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
-            args['adminlevel_9'] = 'adminlevel_9'
-            args['adminlevel_10'] = 'adminlevel_10'
-            args['adminlevel_11'] = 'adminlevel_11'
+            args['tmp_route_table_adminlevel_9'] = args['tmp_route_table'] + '_adminlevel_9'
+            args['tmp_route_table_adminlevel_10'] = args['tmp_route_table'] + '_adminlevel_10'
+            args['tmp_route_table_adminlevel_11'] = args['tmp_route_table'] + '_adminlevel_11'
             
             #SQL Query
-            query = """DROP TABLE IF EXISTS %(results_schema)s.%(adminlevel_9)s;
+            # 1. get lines = boundary of administrative region
+            # 2. make polygon from lines and save to tmp table
+            # 3. select entries that intersect with route buffer into new table
+            # 4. delete tmp table
+            query = """DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_adminlevel_9)s;
                 WITH lines as (
                     SELECT DISTINCT ON (osm_id) osm_id, name, ST_LineMerge(way) as way FROM %(osm_schema)s.%(osm_lines)s WHERE boundary = 'administrative' AND admin_level = '9' AND ST_IsClosed(way) GROUP BY osm_id,way,name
                 )
                 SELECT osm_id, name, ST_MakePolygon(way) as geom INTO %(results_schema)s.tmp FROM lines;
-                SELECT * INTO %(results_schema)s.%(adminlevel_9)s FROM my_admin_regions_route_intersect_buffer('%(results_schema)s.tmp', '%(results_schema)s.%(tmp_route_table)s', ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000)) a;
+                SELECT * INTO %(results_schema)s.%(tmp_route_table_adminlevel_9)s FROM my_admin_regions_route_intersect_buffer('%(results_schema)s.tmp', '%(results_schema)s.%(tmp_route_table)s', ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000)) a;
                 DROP TABLE IF EXISTS %(results_schema)s.tmp;
                 
-                DROP TABLE IF EXISTS %(results_schema)s.%(adminlevel_10)s;
+                DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_adminlevel_10)s;
                 WITH lines as (
                     SELECT DISTINCT ON (osm_id) osm_id, name, ST_LineMerge(way) as way FROM %(osm_schema)s.%(osm_lines)s WHERE boundary = 'administrative' AND admin_level = '10' AND ST_IsClosed(way) GROUP BY osm_id,way,name
                 )
                 SELECT osm_id, name, ST_MakePolygon(way) as geom INTO %(results_schema)s.tmp FROM lines;
-                SELECT * INTO %(results_schema)s.%(adminlevel_10)s FROM my_admin_regions_route_intersect_buffer('%(results_schema)s.tmp', '%(results_schema)s.%(tmp_route_table)s', ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000)) a;
+                SELECT * INTO %(results_schema)s.%(tmp_route_table_adminlevel_10)s FROM my_admin_regions_route_intersect_buffer('%(results_schema)s.tmp', '%(results_schema)s.%(tmp_route_table)s', ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000)) a;
                 DROP TABLE IF EXISTS %(results_schema)s.tmp;
                 
-                DROP TABLE IF EXISTS %(results_schema)s.%(adminlevel_11)s;
+                DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_adminlevel_11)s;
                 WITH lines as (
                     SELECT DISTINCT ON (osm_id) osm_id, name, ST_LineMerge(way) as way FROM %(osm_schema)s.%(osm_lines)s WHERE boundary = 'administrative' AND admin_level = '11' AND ST_IsClosed(way) GROUP BY osm_id,way,name
                 )
                 SELECT osm_id, name, ST_MakePolygon(way) as geom INTO %(results_schema)s.tmp FROM lines;
-                SELECT * INTO %(results_schema)s.%(adminlevel_11)s FROM my_admin_regions_route_intersect_buffer('%(results_schema)s.tmp', '%(results_schema)s.%(tmp_route_table)s', ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000)) a;
+                SELECT * INTO %(results_schema)s.%(tmp_route_table_adminlevel_11)s FROM my_admin_regions_route_intersect_buffer('%(results_schema)s.tmp', '%(results_schema)s.%(tmp_route_table)s', ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000)) a;
                 DROP TABLE IF EXISTS %(results_schema)s.tmp;""" % args
                 
             print "getAdministrativeRegions query: " + query
@@ -2241,36 +2247,36 @@ class orientationMapsCreator:
             
             # Adminlevel 9
             uri = db.getURI()     
-            uri.setDataSource(args['results_schema'], args['adminlevel_9'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
-            vl = self.iface.addVectorLayer(uri.uri(), args['adminlevel_9'], db.getProviderName())  
+            uri.setDataSource(args['results_schema'], args['tmp_route_table_adminlevel_9'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            vl = self.iface.addVectorLayer(uri.uri(), args['tmp_route_table_adminlevel_9'], db.getProviderName())  
             if not vl:
                 QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
             else:
                 vl.loadNamedStyle(plugin_path + '/assets/styles/administrative/gem.qml')
-                self.projectLayerList['adminlevel_9_psql'] = vl
-                self.projectLayerList['adminlevel_9'] = args['adminlevel_9']
+                self.projectLayerList['tmp_route_table_adminlevel_9_psql'] = vl
+                self.projectLayerList['tmp_route_table_adminlevel_9'] = args['tmp_route_table_adminlevel_9']
             
             # Adminlevel 10
             uri = db.getURI()     
-            uri.setDataSource(args['results_schema'], args['adminlevel_10'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
-            vl = self.iface.addVectorLayer(uri.uri(), args['adminlevel_10'], db.getProviderName())  
+            uri.setDataSource(args['results_schema'], args['tmp_route_table_adminlevel_10'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            vl = self.iface.addVectorLayer(uri.uri(), args['tmp_route_table_adminlevel_10'], db.getProviderName())  
             if not vl:
                 QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
             else:
                 vl.loadNamedStyle(plugin_path + '/assets/styles/administrative/gem.qml')
-                self.projectLayerList['adminlevel_10_psql'] = vl
-                self.projectLayerList['adminlevel_10'] = args['adminlevel_10']
+                self.projectLayerList['tmp_route_table_adminlevel_10_psql'] = vl
+                self.projectLayerList['tmp_route_table_adminlevel_10'] = args['tmp_route_table_adminlevel_10']
             
             # Adminlevel 11
             uri = db.getURI()     
-            uri.setDataSource(args['results_schema'], args['adminlevel_11'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
-            vl = self.iface.addVectorLayer(uri.uri(), args['adminlevel_11'], db.getProviderName())  
+            uri.setDataSource(args['results_schema'], args['tmp_route_table_adminlevel_11'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            vl = self.iface.addVectorLayer(uri.uri(), args['tmp_route_table_adminlevel_11'], db.getProviderName())  
             if not vl:
                 QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
             else:
                 vl.loadNamedStyle(plugin_path + '/assets/styles/administrative/gem.qml')
-                self.projectLayerList['adminlevel_11_psql'] = vl
-                self.projectLayerList['adminlevel_11'] = args['adminlevel_11']
+                self.projectLayerList['tmp_route_table_adminlevel_11_psql'] = vl
+                self.projectLayerList['tmp_route_table_adminlevel_11'] = args['tmp_route_table_adminlevel_11']
                 
             self.moveAdministrativeRegions()
             
@@ -2304,6 +2310,112 @@ class orientationMapsCreator:
                   
         stop = timeit.default_timer()
         print('getAdministrativeRegions time: ', stop - start)
+        
+    
+    def getEnvironmentalRegions(self):
+        """getEnvironmentalRegions
+        
+        """
+        
+        print "** getEnvironmentalRegions"
+        
+        start = timeit.default_timer()
+        
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        
+        empties = []
+        for key in args.keys():
+            if not args[key]:
+                empties.append(key)
+        
+        if len(empties) > 0:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                'Following argument is not specified.\n' + ','.join(empties))
+            return
+        
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+            
+            version = Utils.getPgrVersion(con)
+            args['version'] = version
+            if (self.version!=version) :
+                QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                  'versions are different')
+
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            
+            args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            args['tmp_route_table_osm_point'] = args['tmp_route_table'] + '_osm_point'
+            args['tmp_route_table_osm_line'] = args['tmp_route_table'] + '_osm_line'
+            args['tmp_route_table_osm_polygon'] = args['tmp_route_table'] + '_osm_polygon'
+            
+            #SQL Query
+            query = """DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_osm_line)s;
+            SELECT * INTO %(results_schema)s.%(tmp_route_table_osm_line)s 
+            FROM %(osm_schema)s.%(osm_lines)s 
+            WHERE (boundary = 'protected_area' OR 
+                boundary = 'landuse' OR 
+                boundary = 'maritime' OR 
+                boundary = 'national_park' OR 
+                landuse is not NULL)
+                AND
+                ST_DWithin(
+                    (SELECT ST_Transform((SELECT ST_Collect(geom) FROM %(results_schema)s.%(tmp_route_table)s),32632)),
+                    ST_Transform(way, 32632),
+                    ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000));
+            
+            DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_osm_polygon)s;
+            SELECT * INTO %(results_schema)s.%(tmp_route_table_osm_polygon)s
+            FROM %(osm_schema)s.%(osm_polygons)s 
+            WHERE (boundary = 'protected_area' OR 
+                boundary = 'landuse' OR 
+                boundary = 'maritime' OR 
+                boundary = 'national_park' OR 
+                landuse is not NULL)
+                AND
+                ST_DWithin(
+                    (SELECT ST_Transform((SELECT ST_Collect(geom) FROM %(results_schema)s.%(tmp_route_table)s),32632)),
+                    ST_Transform(way, 32632),
+                    ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000));
+            """ % args
+                
+            print "getEnvironmentalRegions query: " + query
+            
+            Utils.logMessage('Query:\n' + query)
+            cur.execute(self.cleanQuery(query))
+            con.commit()
+            
+                
+            #self.moveEnvironmentalRegions()
+            
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')
+                  
+        stop = timeit.default_timer()
+        print('getEnvironmentalRegions time: ', stop - start)
 
   
     def selectOSMPoints(self):
@@ -2793,8 +2905,8 @@ class orientationMapsCreator:
         print "** moveEnvironmentalRegions"
         
         # Adminlevel 9
-        if 'adminlevel_9_psql' in self.projectLayerList.keys():
-            node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['adminlevel_9_psql'].id())
+        if 'tmp_route_table_adminlevel_9_psql' in self.projectLayerList.keys():
+            node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['tmp_route_table_adminlevel_9_psql'].id())
             node_clone = node.clone()
             node_clone.setExpanded(False)
             self.projectLayerPanel['administrative_regions'].insertChildNode(0,node_clone)
@@ -2802,8 +2914,8 @@ class orientationMapsCreator:
             self.projectLayerPanel['default'].removeChildNode(node)
         
         # Adminlevel 10
-        if 'adminlevel_10_psql' in self.projectLayerList.keys():
-            node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['adminlevel_10_psql'].id())
+        if 'tmp_route_table_adminlevel_10_psql' in self.projectLayerList.keys():
+            node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['tmp_route_table_adminlevel_10_psql'].id())
             node_clone = node.clone()
             node_clone.setExpanded(False)
             self.projectLayerPanel['administrative_regions'].insertChildNode(0,node_clone)
@@ -2811,8 +2923,8 @@ class orientationMapsCreator:
             self.projectLayerPanel['default'].removeChildNode(node)
         
         # Adminlevel 11
-        if 'adminlevel_11_psql' in self.projectLayerList.keys():
-            node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['adminlevel_11_psql'].id())
+        if 'tmp_route_table_adminlevel_11_psql' in self.projectLayerList.keys():
+            node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['tmp_route_table_adminlevel_11_psql'].id())
             node_clone = node.clone()
             node_clone.setExpanded(False)
             self.projectLayerPanel['administrative_regions'].insertChildNode(0,node_clone)

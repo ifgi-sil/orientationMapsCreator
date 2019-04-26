@@ -48,7 +48,7 @@
        <property name="geometry">
         <rect>
          <x>0</x>
-         <y>-1063</y>
+         <y>-1023</y>
          <width>462</width>
          <height>2026</height>
         </rect>
@@ -589,23 +589,9 @@
              </property>
              <layout class="QGridLayout" name="gridLayout_10">
               <item row="0" column="0">
-               <widget class="QPushButton" name="btnGetEnvironmentalRegions">
+               <widget class="QPushButton" name="btnGetUrbanAreas">
                 <property name="text">
-                 <string>Get Environmental Regions</string>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="0">
-               <widget class="QPushButton" name="btnAddRegionsNetwork">
-                <property name="text">
-                 <string>Add Network within Regions</string>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="0">
-               <widget class="QPushButton" name="btnGetAdministrativeRegions">
-                <property name="text">
-                 <string>Get Administrative Regions</string>
+                 <string>Get Urban Areas</string>
                 </property>
                </widget>
               </item>
@@ -701,24 +687,38 @@
               <string>Select Features</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_6">
-              <item row="2" column="0">
+              <item row="0" column="0">
+               <widget class="QPushButton" name="btnGetAdministrativeRegions">
+                <property name="text">
+                 <string>Get Administrative Regions</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="0">
                <widget class="QPushButton" name="btnSelectOSMPolygons">
                 <property name="text">
                  <string>Select Polygons</string>
                 </property>
                </widget>
               </item>
-              <item row="0" column="0">
+              <item row="2" column="0">
                <widget class="QPushButton" name="btnSelectOSMPoints">
                 <property name="text">
                  <string>Select Points</string>
                 </property>
                </widget>
               </item>
-              <item row="1" column="0">
+              <item row="3" column="0">
                <widget class="QPushButton" name="btnSelectOSMLines">
                 <property name="text">
                  <string>Select Lines</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="0">
+               <widget class="QPushButton" name="btnGetEnvironmentalRegions">
+                <property name="text">
+                 <string>Get Environmental Regions</string>
                 </property>
                </widget>
               </item>
