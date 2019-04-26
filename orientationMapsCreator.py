@@ -1590,12 +1590,12 @@ class orientationMapsCreator:
             srid, geomType = Utils.getSridAndGeomType(con, args)
             
             args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
-            args['edge_table_buffered'] = args['edge_table'] + "_buffered"         
+            args['tmp_route_table_network'] = args['tmp_route_table'] + "_network"         
             
             #Buffer network with length of route
-            query = """DROP TABLE IF EXISTS %(results_schema)s.%(edge_table_buffered)s;
+            query = """DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_network)s;
                 SELECT * 
-                INTO %(results_schema)s.%(edge_table_buffered)s
+                INTO %(results_schema)s.%(tmp_route_table_network)s
                 FROM my_route_length_buffer('%(edge_schema)s.%(edge_table)s', '%(results_schema)s.%(tmp_route_table)s', 1)""" % args
             
             print "bufferNetwork query: " + query
@@ -1605,21 +1605,21 @@ class orientationMapsCreator:
             con.commit()
             
             # Create Index
-            db.create_spatial_index(args['edge_table_buffered'], args['results_schema'], 'geom')
+            db.create_spatial_index(args['tmp_route_table_network'], args['results_schema'], 'geom')
             
             # Specify tmp table in uri for loading in qgis as vector layer
             uri = db.getURI()     
-            uri.setDataSource(args['results_schema'], args['edge_table_buffered'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            uri.setDataSource(args['results_schema'], args['tmp_route_table_network'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
             
             # Save to vector layer
-            vl = self.iface.addVectorLayer(uri.uri(), args['edge_table_buffered'], db.getProviderName())  
+            vl = self.iface.addVectorLayer(uri.uri(), args['tmp_route_table_network'], db.getProviderName())  
             if not vl:
                 QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
             # Style layer
             vl.loadNamedStyle(plugin_path + '/assets/styles/osm2po_network_2.qml')
             
             self.projectLayerList['buffered_network_psql'] = vl
-            self.projectLayerList['edge_table_buffered'] = args['edge_table_buffered']
+            self.projectLayerList['tmp_route_table_network'] = args['tmp_route_table_network']
             
             self.moveBufferLayer()
             
@@ -1709,7 +1709,7 @@ class orientationMapsCreator:
             args['tmp_vertice_table_junctions'] = args['tmp_route_table'] + '_junctions'
             args['tmp_vertice_table_dps'] = args['tmp_route_table'] + '_dps'
             args['tmp_vertice_table_any'] = args['tmp_route_table'] + '_any'
-            args['edge_table_buffered'] = self.projectLayerList['edge_table_buffered']
+            args['tmp_route_table_network'] = self.projectLayerList['tmp_route_table_network']
 
             
             #Calculate angles of route vertices
@@ -1737,7 +1737,7 @@ class orientationMapsCreator:
                 ALTER TABLE %(results_schema)s.%(tmp_vertice_table)s ADD COLUMN dp_type integer;
                 UPDATE %(results_schema)s.%(tmp_vertice_table)s a SET angle_lin_lout=b.angle, dp_type=b.dp_type
                 FROM (
-                    SELECT * FROM my_route_get_dp('%(results_schema)s.%(edge_table_buffered)s', '%(results_schema)s.%(tmp_route_table)s', '%(results_schema)s.%(tmp_vertice_table)s', 30)
+                    SELECT * FROM my_route_get_dp('%(results_schema)s.%(tmp_route_table_network)s', '%(results_schema)s.%(tmp_route_table)s', '%(results_schema)s.%(tmp_vertice_table)s', 30)
                 ) b
                 WHERE a.id = b.id""" % args
                 
@@ -2004,20 +2004,20 @@ class orientationMapsCreator:
             srid, geomType = Utils.getSridAndGeomType(con, args)
             
             args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
-            args['urban_areas'] = 'urban_areas'
-            args['urban_labels'] = 'urban_labels'
+            args['tmp_route_table_urban_areas'] = args['tmp_route_table'] + '_urban_areas'
+            args['tmp_route_table_urban_labels'] = args['tmp_route_table'] + '_urban_labels'
             
             #SQL Query
             # SELECT * FROM %(results_schema)s.%(tmp_route_table)s
-            query = """DROP TABLE IF EXISTS %(results_schema)s.%(urban_areas)s;
-                SELECT * INTO %(results_schema)s.%(urban_areas)s
+            query = """DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_urban_areas)s;
+                SELECT * INTO %(results_schema)s.%(tmp_route_table_urban_areas)s
                 FROM my_regions_route_intersect_buffer('%(open_nrw_schema)s.%(open_nrw_dlm)s', '%(results_schema)s.%(tmp_route_table)s', 
                     ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000));
-                ALTER TABLE %(results_schema)s.%(urban_areas)s ADD COLUMN shape_length numeric, ADD COLUMN shape_area numeric;
-                UPDATE %(results_schema)s.%(urban_areas)s SET shape_length=ST_Perimeter(geom), shape_area=ST_Area(geom);
-                UPDATE %(results_schema)s.%(urban_areas)s as t SET geom = a.geom FROM
+                ALTER TABLE %(results_schema)s.%(tmp_route_table_urban_areas)s ADD COLUMN shape_length numeric, ADD COLUMN shape_area numeric;
+                UPDATE %(results_schema)s.%(tmp_route_table_urban_areas)s SET shape_length=ST_Perimeter(geom), shape_area=ST_Area(geom);
+                UPDATE %(results_schema)s.%(tmp_route_table_urban_areas)s as t SET geom = a.geom FROM
                     (SELECT id, ST_Collect(ST_MakePolygon(geom)) As geom
-                    FROM (SELECT id, ST_ExteriorRing((ST_Dump(geom)).geom) As geom FROM %(results_schema)s.%(urban_areas)s) as s
+                    FROM (SELECT id, ST_ExteriorRing((ST_Dump(geom)).geom) As geom FROM %(results_schema)s.%(tmp_route_table_urban_areas)s) as s
                     GROUP BY id) as a
                     WHERE t.id = a.id;""" % args
                             
@@ -2031,21 +2031,21 @@ class orientationMapsCreator:
             
             # Urban areas
             uri = db.getURI()     
-            uri.setDataSource(args['results_schema'], args['urban_areas'], "geom", "", "id")     #path_geom holds route segments in correct subsequent order != geom
-            vl = self.iface.addVectorLayer(uri.uri(), args['urban_areas'], db.getProviderName())  
+            uri.setDataSource(args['results_schema'], args['tmp_route_table_urban_areas'], "geom", "", "id")     #path_geom holds route segments in correct subsequent order != geom
+            vl = self.iface.addVectorLayer(uri.uri(), args['tmp_route_table_urban_areas'], db.getProviderName())  
             if not vl:
                 QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
             vl.loadNamedStyle(plugin_path + '/assets/styles/urban_areas.qml')
-            self.projectLayerList['urban_areas_psql'] = vl
-            self.projectLayerList['urban_areas'] = args['urban_areas']
+            self.projectLayerList['tmp_route_table_urban_areas_psql'] = vl
+            self.projectLayerList['tmp_route_table_urban_areas'] = args['tmp_route_table_urban_areas']
             
             # Urban labels 
-            vl_labels = self.iface.addVectorLayer(uri.uri(), args['urban_labels'], db.getProviderName())  
+            vl_labels = self.iface.addVectorLayer(uri.uri(), args['tmp_route_table_urban_labels'], db.getProviderName())  
             if not vl_labels:
                 QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
             vl_labels.loadNamedStyle(plugin_path + '/assets/styles/urban_labels.qml')
-            self.projectLayerList['urban_labels_psql'] = vl_labels
-            self.projectLayerList['urban_labels'] = args['urban_labels']
+            self.projectLayerList['tmp_route_table_urban_labels_psql'] = vl_labels
+            self.projectLayerList['tmp_route_table_urban_labels'] = args['tmp_route_table_urban_labels']
             
             self.moveEnvironmentalRegions()
             
@@ -2120,16 +2120,16 @@ class orientationMapsCreator:
             srid, geomType = Utils.getSridAndGeomType(con, args)
             
             args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
-            args['edge_table_buffered'] = self.projectLayerList['edge_table_buffered']
-            args['urban_areas'] = self.projectLayerList['urban_areas']
+            args['tmp_route_table_network'] = self.projectLayerList['tmp_route_table_network']
+            args['tmp_route_table_urban_areas'] = self.projectLayerList['tmp_route_table_urban_areas']
             
             
             #SQL Query
-            query = """INSERT INTO %(results_schema)s.%(edge_table_buffered)s
+            query = """INSERT INTO %(results_schema)s.%(tmp_route_table_network)s
                 SELECT s.* FROM
-                    %(edge_schema)s.%(edge_table)s s, %(results_schema)s.%(urban_areas)s r
+                    %(edge_schema)s.%(edge_table)s s, %(results_schema)s.%(tmp_route_table_urban_areas)s r
                     WHERE ST_Intersects(ST_Transform(s.geom, 25832), r.geom) AND 
-                        s.id not in (SELECT id FROM %(results_schema)s.%(edge_table_buffered)s)""" % args
+                        s.id not in (SELECT id FROM %(results_schema)s.%(tmp_route_table_network)s)""" % args
                 
             print "addRegionsNetwork query: " + query
                 
@@ -2656,7 +2656,7 @@ class orientationMapsCreator:
         
         """
         
-        print "** createFktBufferNetwork"
+        print "** createMissingFkt"
         
         start = timeit.default_timer()
         
@@ -2695,7 +2695,7 @@ class orientationMapsCreator:
                         'server closed the connection unexpectedly')
         
         stop = timeit.default_timer()
-        print('createFktBufferNetwork time: ', stop - start)
+        print('createMissingFkt time: ', stop - start)
 
 
     # --------------------------------------------------------------------------
@@ -2773,7 +2773,7 @@ class orientationMapsCreator:
         print "** moveEnvironmentalRegions"
         
         # Urban areas
-        node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['urban_areas_psql'].id())
+        node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['tmp_route_table_urban_areas_psql'].id())
         node_clone = node.clone()
         node_clone.setExpanded(False)
         self.projectLayerPanel['environmental_regions'].insertChildNode(0,node_clone)
@@ -2781,7 +2781,7 @@ class orientationMapsCreator:
         self.projectLayerPanel['default'].removeChildNode(node)
         
         # Urban labels
-        node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['urban_labels_psql'].id())
+        node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['tmp_route_table_urban_labels_psql'].id())
         node_clone = node.clone()
         node_clone.setExpanded(False)
         self.projectLayerPanel['environmental_regions'].insertChildNode(0,node_clone)
