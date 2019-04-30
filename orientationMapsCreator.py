@@ -2354,6 +2354,7 @@ class orientationMapsCreator:
             args['tmp_route_table_osm_point'] = args['tmp_route_table'] + '_osm_point'
             args['tmp_route_table_osm_line'] = args['tmp_route_table'] + '_osm_line'
             args['tmp_route_table_osm_polygon'] = args['tmp_route_table'] + '_osm_polygon'
+            args['tmp_route_table_osm_er'] = args['tmp_route_table'] + '_osm_er'
             
             #SQL Query
             query = """DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_osm_line)s;
@@ -2370,6 +2371,9 @@ class orientationMapsCreator:
                     ST_Transform(way, 32632),
                     ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000));
             
+            ALTER TABLE %(results_schema)s.%(tmp_route_table_osm_line)s 
+                ALTER COLUMN way TYPE geometry(Geometry,900913) USING ST_MakePolygon(way);
+
             DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_osm_polygon)s;
             SELECT * INTO %(results_schema)s.%(tmp_route_table_osm_polygon)s
             FROM %(osm_schema)s.%(osm_polygons)s 
@@ -2383,9 +2387,105 @@ class orientationMapsCreator:
                     (SELECT ST_Transform((SELECT ST_Collect(geom) FROM %(results_schema)s.%(tmp_route_table)s),32632)),
                     ST_Transform(way, 32632),
                     ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000));
+                    
+                        
+            DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_osm_er)s;
+            SELECT * INTO %(results_schema)s.%(tmp_route_table_osm_er)s 
+            FROM %(results_schema)s.%(tmp_route_table_osm_polygon)s
+            UNION
+            SELECT * 
+            FROM %(results_schema)s.%(tmp_route_table_osm_line)s;
+            
+            DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_osm_line)s;
+            DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_osm_polygon)s;
             """ % args
                 
             print "getEnvironmentalRegions query: " + query
+            
+            Utils.logMessage('Query:\n' + query)
+            cur.execute(self.cleanQuery(query))
+            con.commit()
+            
+            #TODO: add layer to map?
+                
+            #self.moveEnvironmentalRegions()
+            
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')
+                  
+        stop = timeit.default_timer()
+        print('getEnvironmentalRegions time: ', stop - start)
+        
+        #self.refineEnvironmentalRegions()
+        
+    
+    def refineEnvironmentalRegions(self):
+        """refineEnvironmentalRegions
+        
+        """
+        
+        print "** refineEnvironmentalRegions"
+        
+        start = timeit.default_timer()
+        
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        
+        empties = []
+        for key in args.keys():
+            if not args[key]:
+                empties.append(key)
+        
+        if len(empties) > 0:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                'Following argument is not specified.\n' + ','.join(empties))
+            return
+        
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+            
+            version = Utils.getPgrVersion(con)
+            args['version'] = version
+            if (self.version!=version) :
+                QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                  'versions are different')
+
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            
+            args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            #TODO: load args from projectLayerList if exist
+            args['tmp_route_table_osm_point'] = args['tmp_route_table'] + '_osm_point'
+            args['tmp_route_table_osm_line'] = args['tmp_route_table'] + '_osm_line'
+            args['tmp_route_table_osm_polygon'] = args['tmp_route_table'] + '_osm_polygon'
+            
+            #SQL Query
+            query = """DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_osm_line)s;
+            
+            """ % args
+                
+            print "refineEnvironmentalRegions query: " + query
             
             Utils.logMessage('Query:\n' + query)
             cur.execute(self.cleanQuery(query))
@@ -2415,7 +2515,7 @@ class orientationMapsCreator:
                         'server closed the connection unexpectedly')
                   
         stop = timeit.default_timer()
-        print('getEnvironmentalRegions time: ', stop - start)
+        print('refineEnvironmentalRegions time: ', stop - start)
 
   
     def selectOSMPoints(self):
@@ -2457,16 +2557,49 @@ class orientationMapsCreator:
             srid, geomType = Utils.getSridAndGeomType(con, args)
             
             args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            args['tmp_route_table_osm_pl'] = args['tmp_route_table'] + '_osm_pl'
             
             #SQL Query
-#             query = """SELECT * FROM %(results_schema)s.%(tmp_route_table)s""" % args
-#                 
-#                 
-#             Utils.logMessage('Query:\n' + query)
-#             cur.execute(self.cleanQuery(query))
-#             con.commit()
-#             
-#             
+            query = """DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_osm_pl)s;
+                SELECT * INTO %(results_schema)s.%(tmp_route_table_osm_pl)s 
+                FROM %(osm_schema)s.%(osm_points)s 
+                WHERE (
+                    amenity is not null OR
+                    leisure is not null OR
+                    tourism is not null OR
+                    shop is not null OR
+                    barrier is not null OR
+                    (highway is not null AND tags -> 'bridge' IN ('yes')) OR
+                    (highway is not null AND tags -> 'tunnel' IN ('yes')) OR
+                    highway = 'bus_stop' OR
+                    highway = 'crossing' OR
+                    highway = 'rest_area' OR
+                    highway = 'services' OR
+                    highway = 'traffic_signal' OR
+                    junction = 'roundabout' OR
+                    tags -> 'public_transport' IN ('platform') OR
+                    tags -> 'public_transport' IN ('stop_position') OR
+                    tags -> 'public_transport' IN ('stop_area') OR
+                    tags -> 'public_transport' IN ('station') OR
+                    railway = 'crossing' OR
+                    railway = 'level_crossing' OR
+                    railway = 'platform' OR
+                    railway = 'station' OR
+                    "natural" is not null)
+                    AND
+                    ST_DWithin(
+                        (SELECT ST_Transform((SELECT ST_Collect(geom) FROM %(results_schema)s.%(tmp_route_table)s),32632)),
+                        ST_Transform(way, 32632),
+                        ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000)
+                    );
+            """ % args
+                 
+                 
+            Utils.logMessage('Query:\n' + query)
+            cur.execute(self.cleanQuery(query))
+            con.commit()
+             
+             
 #             # Specify tmp table in uri
 #             uri = db.getURI()     
 #             uri.setDataSource(args['results_schema'], args['tmp_route_table'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
@@ -2543,15 +2676,31 @@ class orientationMapsCreator:
             srid, geomType = Utils.getSridAndGeomType(con, args)
             
             args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            args['tmp_route_table_osm_ll'] = args['tmp_route_table'] + '_osm_ll'
             
             #SQL Query
-#             query = """SELECT * FROM %(results_schema)s.%(tmp_route_table)s""" % args
-#                 
-#                 
-#             Utils.logMessage('Query:\n' + query)
-#             cur.execute(self.cleanQuery(query))
-#             con.commit()
-#             
+            query = """DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_osm_ll)s;
+                SELECT * INTO %(results_schema)s.%(tmp_route_table_osm_ll)s 
+                FROM %(osm_schema)s.%(osm_lines)s 
+                WHERE (
+                    barrier is not null OR
+                    (highway is not null AND tags -> 'bridge' IN ('yes')) OR
+                    (highway is not null AND tags -> 'tunnel' IN ('yes')) OR
+                    railway = 'rail' OR
+                    waterway is not null OR
+                    "natural" is not null)
+                    AND
+                    ST_DWithin(
+                        (SELECT ST_Transform((SELECT ST_Collect(geom) FROM %(results_schema)s.%(tmp_route_table)s),32632)),
+                        ST_Transform(way, 32632),
+                        ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000)
+                    );
+            """ % args
+                 
+            Utils.logMessage('Query:\n' + query)
+            cur.execute(self.cleanQuery(query))
+            con.commit()
+             
 #             
 #             # Specify tmp table in uri
 #             uri = db.getURI()     
@@ -2629,16 +2778,30 @@ class orientationMapsCreator:
             srid, geomType = Utils.getSridAndGeomType(con, args)
             
             args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            args['tmp_route_table_osm_al'] = args['tmp_route_table'] + '_osm_al'
             
             #SQL Query
-#             query = """SELECT * FROM %(results_schema)s.%(tmp_route_table)s""" % args
-#                 
-#                 
-#             Utils.logMessage('Query:\n' + query)
-#             cur.execute(self.cleanQuery(query))
-#             con.commit()
-#             
-#             
+            query = """DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_osm_al)s;
+                SELECT * INTO %(results_schema)s.%(tmp_route_table_osm_al)s 
+                FROM %(osm_schema)s.%(osm_polygons)s 
+                WHERE (
+                    amenity is not null OR
+                    leisure is not null OR
+                    tourism is not null OR
+                    "natural" is not null)
+                    AND
+                    ST_DWithin(
+                        (SELECT ST_Transform((SELECT ST_Collect(geom) FROM %(results_schema)s.%(tmp_route_table)s),32632)),
+                        ST_Transform(way, 32632),
+                        ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000)
+                    );
+            """ % args
+                 
+            Utils.logMessage('Query:\n' + query)
+            cur.execute(self.cleanQuery(query))
+            con.commit()
+            
+            
 #             # Specify tmp table in uri
 #             uri = db.getURI()     
 #             uri.setDataSource(args['results_schema'], args['tmp_route_table'], "geom", "", "seq")     #path_geom holds route segments in correct subsequent order != geom
