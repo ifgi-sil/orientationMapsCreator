@@ -46,6 +46,12 @@ def setEndPoint(geomType, args):
         args['endpoint'] = "ST_EndPoint(ST_GeometryN(%(geometry)s, 1))" % args
     elif geomType == 'ST_LineString':
         args['endpoint'] = "ST_EndPoint(%(geometry)s)" % args
+        
+def setCurrentPoint(geomType, args):
+    if geomType == 'ST_MultiLineString':
+        args['currentpoint'] = "ST_StartPoint(ST_GeometryN(%(geometry)s, 1))" % args
+    elif geomType == 'ST_LineString':
+        args['currentpoint'] = "ST_StartPoint(%(geometry)s)" % args
 
 def setTransformQuotes(args, srid, canvas_srid):
     if srid > 0 and canvas_srid > 0:

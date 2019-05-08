@@ -67,12 +67,12 @@ class orientationMapsCreator:
         
         # Init markers for route calculation
         self.idsVertexMarkers = []
-        self.targetIdsVertexMarkers = []
         self.sourceIdsVertexMarkers = []
         self.sourceIdVertexMarker = QgsVertexMarker(self.iface.mapCanvas())
         self.sourceIdVertexMarker.setColor(Qt.blue)
         self.sourceIdVertexMarker.setPenWidth(2)
         self.sourceIdVertexMarker.setVisible(False)
+        self.targetIdsVertexMarkers = []
         self.targetIdVertexMarker = QgsVertexMarker(self.iface.mapCanvas())
         self.targetIdVertexMarker.setColor(Qt.green)
         self.targetIdVertexMarker.setPenWidth(2)
@@ -84,6 +84,17 @@ class orientationMapsCreator:
         self.targetIdRubberBand = QgsRubberBand(self.iface.mapCanvas(), Utils.getRubberBandType(False))
         self.targetIdRubberBand.setColor(Qt.yellow)
         self.targetIdRubberBand.setWidth(4)
+        
+        # Init marker for current location
+        self.currentLocationVertexMarkers = []
+        self.currentLocationVertexMarker = QgsVertexMarker(self.iface.mapCanvas())
+        self.currentLocationVertexMarker.setColor(Qt.red)
+        self.currentLocationVertexMarker.setPenWidth(2)
+        self.currentLocationVertexMarker.setVisible(False)
+        self.currentLocationRubberBand = QgsRubberBand(self.iface.mapCanvas(), Utils.getRubberBandType(False))
+        self.currentLocationRubberBand.setColor(Qt.magenta)
+        self.currentLocationRubberBand.setWidth(4)
+        self.currentLocation = None
         
         #Items drawn on the canvas without saving to a layer
         self.canvasItemList = {}
@@ -263,6 +274,7 @@ class orientationMapsCreator:
         self.idsEmitPoint = QgsMapToolEmitPoint(self.iface.mapCanvas())
         self.sourceIdEmitPoint = QgsMapToolEmitPoint(self.iface.mapCanvas())
         self.targetIdEmitPoint = QgsMapToolEmitPoint(self.iface.mapCanvas())
+        self.currentLocationEmitPoint = QgsMapToolEmitPoint(self.iface.mapCanvas())
         
                  
         # connect UI actions to methods
@@ -300,6 +312,11 @@ class orientationMapsCreator:
         QObject.connect(self.targetIdEmitPoint, SIGNAL("canvasClicked(const QgsPoint&, Qt::MouseButton)"), self.setTargetId)
         QObject.connect(self.dockwidget.btnSelectRandomTarget, SIGNAL("clicked()"), self.setRandomTargetId)
         
+        
+        # Context
+        QObject.connect(self.dockwidget.btnSelectCurrentLocation, SIGNAL("clicked(bool)"), self.selectCurrentLocation)
+        QObject.connect(self.currentLocationEmitPoint, SIGNAL("canvasClicked(const QgsPoint&, Qt::MouseButton)"), self.setCurrentLocation)
+        QObject.connect(self.dockwidget.btnSelectRandomCurrentLocation, SIGNAL("clicked()"), self.setRandomCurrentLocation)
         
         # OPEN NRW
         QObject.connect(self.dockwidget.comboBoxOpenNRWSchema, SIGNAL("currentIndexChanged(const QString&)"), self.updateOpenNRWSchemaIndexChanged)
@@ -367,6 +384,7 @@ class orientationMapsCreator:
         print "** UNLOAD orientationMapsCreator"
 
         self.clearPreview()
+        self.clearLayerList()
         self.saveSettings()
         for action in self.actions:
             self.iface.removePluginMenu(
@@ -2433,7 +2451,7 @@ class orientationMapsCreator:
         stop = timeit.default_timer()
         print('getEnvironmentalRegions time: ', stop - start)
         
-        #self.refineEnvironmentalRegions()
+        self.refineEnvironmentalRegions()
         
     
     def refineEnvironmentalRegions(self):
@@ -2459,6 +2477,8 @@ class orientationMapsCreator:
                 'Following argument is not specified.\n' + ','.join(empties))
             return
         
+        canvasCrs = Utils.getDestinationCrs(self.iface.mapCanvas())
+        
         db = None
         try:
             dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
@@ -2474,22 +2494,52 @@ class orientationMapsCreator:
 
             srid, geomType = Utils.getSridAndGeomType(con, args)
             
+            args['srid'] = srid
+            args['canvas_srid'] = Utils.getCanvasSrid(canvasCrs)
+            
             args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
-            #TODO: load args from projectLayerList if exist
+            args['tmp_vertice_table'] = self.projectLayerList['tmp_vertice_table']
             args['tmp_route_table_osm_point'] = args['tmp_route_table'] + '_osm_point'
             args['tmp_route_table_osm_line'] = args['tmp_route_table'] + '_osm_line'
             args['tmp_route_table_osm_polygon'] = args['tmp_route_table'] + '_osm_polygon'
+            args['tmp_route_table_osm_er'] = args['tmp_route_table'] + '_osm_er'
+            args['tmp_route_table_osm_er_refined'] = args['tmp_route_table'] + '_osm_er_refined'
+            
+            args['functional_scale'] = self.dockwidget.comboBoxFunctionalScale.currentText().split()[0]
+            
+            if args['functional_scale'] == "5":
+                print "functional scale:", args['functional_scale']
+                #TODO set current location to 0,0 or start point
+            else:
+                print "functional scale:", args['functional_scale']
+                #TODO get current location from saved value
+                if self.currentLocation:
+                    print 'current location exists'
+                    args['x'] = self.currentLocation.asPoint().x()
+                    args['y'] = self.currentLocation.asPoint().y()
+                    print 'current point:',args['x'],args['y'], args['srid']
+                else:
+                    print 'current location does not exist'
+                    raise IOError('Current location not found')
             
             #SQL Query
-            query = """DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_osm_line)s;
-            
+            query = """DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_osm_er_refined)s;
+            WITH route as (
+                SELECT * FROM %(results_schema)s.%(tmp_route_table)s
+            ),
+            vertices as (
+                SELECT * FROM %(results_schema)s.%(tmp_vertice_table)s
+            ),
+            current_location as (
+                SELECT ST_GeomFromText('POINT(%(x)f %(y)f)', %(canvas_srid)d)
+            ),
             """ % args
                 
             print "refineEnvironmentalRegions query: " + query
             
-            Utils.logMessage('Query:\n' + query)
-            cur.execute(self.cleanQuery(query))
-            con.commit()
+            #Utils.logMessage('Query:\n' + query)
+            #cur.execute(self.cleanQuery(query))
+            #con.commit()
             
                 
             #self.moveEnvironmentalRegions()
@@ -2502,6 +2552,11 @@ class orientationMapsCreator:
             
         except SystemError, e:
             print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except IOError, e:
+            print "** IO Error"
             QApplication.restoreOverrideCursor()
             QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
             
@@ -3126,7 +3181,8 @@ class orientationMapsCreator:
     def toggleSelectButton(self, button):
         selectButtons = [
             self.dockwidget.btnSelectSourceID,
-            self.dockwidget.btnSelectTargetID
+            self.dockwidget.btnSelectTargetID,
+            self.dockwidget.btnSelectCurrentLocation
         ]
         for selectButton in selectButtons:
             if selectButton != button:
@@ -3368,6 +3424,8 @@ class orientationMapsCreator:
         
         return "/tmp/" + layerName + ".shp"
     
+    
+    # SOURCE ID
     def selectSourceId(self, checked):
         if checked:
             self.toggleSelectButton(self.dockwidget.btnSelectSourceID)
@@ -3392,7 +3450,23 @@ class orientationMapsCreator:
         else:
             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'isEdgeBase.')
         Utils.refreshMapCanvas(self.iface.mapCanvas())
+    
+    def setRandomSourceId(self):
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        if not function.isEdgeBase():
+            result, id, wkt = self.findRandomNode(args)
+            if result:
+                self.dockwidget.lineEditSelectSourceID.setText(str(id))
+                geom = QgsGeometry().fromWkt(wkt)
+                self.sourceIdVertexMarker.setCenter(geom.asPoint())
+                self.sourceIdVertexMarker.setVisible(True)
+        else:
+            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'isEdgeBase.')
+        Utils.refreshMapCanvas(self.iface.mapCanvas())
             
+    
+    # TARGET ID
     def selectTargetId(self, checked):
         if checked:
             self.toggleSelectButton(self.dockwidget.btnSelectTargetID)
@@ -3419,21 +3493,6 @@ class orientationMapsCreator:
             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'isEdgeBase.')
         Utils.refreshMapCanvas(self.iface.mapCanvas())
         
-            
-    def setRandomSourceId(self):
-        function = self.functions['dijkstra']
-        args = self.getArguments(function.getControlNames(self.version))
-        if not function.isEdgeBase():
-            result, id, wkt = self.findRandomNode(args)
-            if result:
-                self.dockwidget.lineEditSelectSourceID.setText(str(id))
-                geom = QgsGeometry().fromWkt(wkt)
-                self.sourceIdVertexMarker.setCenter(geom.asPoint())
-                self.sourceIdVertexMarker.setVisible(True)
-        else:
-            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'isEdgeBase.')
-        Utils.refreshMapCanvas(self.iface.mapCanvas())
-        
         
     def setRandomTargetId(self):
         function = self.functions['dijkstra']
@@ -3452,6 +3511,56 @@ class orientationMapsCreator:
             QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'isEdgeBase.')
         Utils.refreshMapCanvas(self.iface.mapCanvas())
         
+        
+    # CURRENT LOCATION
+    def selectCurrentLocation(self, checked):
+        
+        print "** selectCurrentLocation"
+        
+        if checked:
+            print "checked"
+            self.toggleSelectButton(self.dockwidget.btnSelectCurrentLocation)
+            self.dockwidget.lineEditCurrentLocation.setText("")
+            self.currentLocationVertexMarker.setVisible(False)
+            self.currentLocationRubberBand.reset(Utils.getRubberBandType(False))
+            self.iface.mapCanvas().setMapTool(self.currentLocationEmitPoint)
+        else:
+            print "not checked"
+            self.iface.mapCanvas().unsetMapTool(self.currentLocationEmitPoint)
+    
+    def setCurrentLocation(self, pt):
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        if not function.isEdgeBase():
+            result, lng, lat, wkt = self.findNearestRoutePoint(args, pt)
+            if result:
+                self.dockwidget.lineEditCurrentLocation.setText(str(lng) + "," + str(lat))
+                geom = QgsGeometry().fromWkt(wkt)
+                self.currentLocation = geom
+                self.currentLocationVertexMarker.setCenter(geom.asPoint())
+                self.currentLocationVertexMarker.setVisible(True)
+                self.dockwidget.btnSelectCurrentLocation.click()
+        else:
+            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'isEdgeBase.')
+        Utils.refreshMapCanvas(self.iface.mapCanvas())
+        
+    def setRandomCurrentLocation(self):
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        if not function.isEdgeBase():
+            result, lng, lat, wkt = self.findRandomRoutePoint(args)
+            if result:
+                self.dockwidget.lineEditCurrentLocation.setText(str(lng) + "," + str(lat))
+                geom = QgsGeometry().fromWkt(wkt)
+                self.currentLocation = geom
+                self.currentLocationVertexMarker.setCenter(geom.asPoint())
+                self.currentLocationVertexMarker.setVisible(True)
+        else:
+            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'isEdgeBase.')
+        Utils.refreshMapCanvas(self.iface.mapCanvas())
+            
+    
+            
             
     def clearPreview(self):
         
@@ -3478,6 +3587,7 @@ class orientationMapsCreator:
         #self.dock.lineEditTargetId.setText("")
         self.targetIdVertexMarker.setVisible(False)
         #self.dock.lineEditTargetPos.setText("0.5")
+        self.currentLocationVertexMarker.setVisible(False)
         for rubberBand in self.idsRubberBands:
             rubberBand.reset(Utils.getRubberBandType(False))
         self.idsRubberBands = []
@@ -3499,9 +3609,27 @@ class orientationMapsCreator:
         self.canvasItemList['paths'] = []
         self.canvasItemList['path'].reset(Utils.getRubberBandType(False))
         self.canvasItemList['area'].reset(Utils.getRubberBandType(True))
+        
+    def clearLayerList(self):
+        
+        print "** clearLayerList"
+        
+        for l in self.projectLayerList:
+            layer = self.projectLayerList[l]
+            QgsMapLayerRegistry.instance().removeMapLayer(layer)
+            del layer
+                
+        for p in self.projectLayerPanel.copy():
+            panel = self.projectLayerPanel[p]
+            if panel != self.projectLayerPanel['root']:
+                self.projectLayerPanel['root'].removeChildNode(panel)
+                del panel
 
 
     def findNearestNode(self, args, pt):
+        
+        print "** findNearestNode"
+        
         distance = self.iface.mapCanvas().getCoordinateTransform().mapUnitsPerPixel() * self.FIND_RADIUS
         rect = QgsRectangle(pt.x() - distance, pt.y() - distance, pt.x() + distance, pt.y() + distance)
         canvasCrs = Utils.getDestinationCrs(self.iface.mapCanvas())
@@ -3553,6 +3681,7 @@ class orientationMapsCreator:
                     ORDER BY v.geom <-> ST_SetSRID(ST_Point(%(x)f, %(y)f), %(srid)d) LIMIT 1""" % args
                     
             #QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % query1)
+            print "findNearestNode query source: " + query1
             
             ##Utils.logMessage(query1)
             cur1 = con.cursor()
@@ -3580,6 +3709,7 @@ class orientationMapsCreator:
                     ORDER BY v.geom <-> ST_SetSRID(ST_Point(%(x)f, %(y)f), %(srid)d) LIMIT 1""" % args
                     
             #QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % query2)
+            print "findNearestNode query target: " + query2
             
             ##Utils.logMessage(query2)
             cur2 = con.cursor()
@@ -3673,6 +3803,7 @@ class orientationMapsCreator:
                     LIMIT 1""" % args
                     
             #QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % query)
+            print "findRandomNode query: " + query
             
             ##Utils.logMessage(query1)
             cur = con.cursor()
@@ -3745,6 +3876,7 @@ class orientationMapsCreator:
                 LIMIT 1""" % args
                     
             #QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % query)
+            print "findRandomNodeWithinDist query: " + query
             
             ##Utils.logMessage(query1)
             cur = con.cursor()
@@ -3762,6 +3894,155 @@ class orientationMapsCreator:
             QApplication.restoreOverrideCursor()
             QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
             return False, None, None
+            
+        finally:
+            if db and db.con:
+                db.con.close()
+                
+    
+    def findNearestRoutePoint(self, args, pt):
+        
+        print "** findNearestRoutePoint"
+        
+        distance = self.iface.mapCanvas().getCoordinateTransform().mapUnitsPerPixel() * self.FIND_RADIUS
+        rect = QgsRectangle(pt.x() - distance, pt.y() - distance, pt.x() + distance, pt.y() + distance)
+        canvasCrs = Utils.getDestinationCrs(self.iface.mapCanvas())
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            
+            #srid, geomType = self.getSridAndGeomType(con, args)
+            #srid, geomType = Utils.getSridAndGeomType(con, args['edge_table'], args['geometry'])
+            
+            #srid, geomType = Utils.getSridAndGeomType(con, '%(edge_table)s' % args, '%(geometry)s' % args)
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            if self.iface.mapCanvas().hasCrsTransformEnabled():
+                layerCrs = QgsCoordinateReferenceSystem()
+                Utils.createFromSrid(layerCrs, srid)
+                trans = QgsCoordinateTransform(canvasCrs, layerCrs)
+                pt = trans.transform(pt)
+                rect = trans.transform(rect)
+            
+            args['canvas_srid'] = Utils.getCanvasSrid(canvasCrs)
+            args['srid'] = srid
+            args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            args['tmp_vertice_table'] = self.projectLayerList['tmp_vertice_table']
+            
+            args['x'] = pt.x()
+            args['y'] = pt.y()
+            args['minx'] = rect.xMinimum()
+            args['miny'] = rect.yMinimum()
+            args['maxx'] = rect.xMaximum()
+            args['maxy'] = rect.yMaximum()
+            
+            
+            Utils.setCurrentPoint(geomType, args)
+            Utils.setTransformQuotes(args, srid, args['canvas_srid'])
+            
+            # Getting nearest point on route
+            query = """
+                WITH closest_point as (
+                    SELECT 
+                        ST_ClosestPoint(ST_Collect(e.geom),ST_SetSRID(ST_Point(%(x)f, %(y)f), %(srid)d)) as point   
+                    FROM %(results_schema)s.%(tmp_route_table)s as e
+                )
+                SELECT  
+                    ST_AsText(%(transform_s)s c.point %(transform_e)s),
+                    ST_X(%(transform_s)s c.point, 4326)),
+                    ST_Y(%(transform_s)s c.point, 4326))
+                FROM closest_point as c
+                """ % args
+                    
+            #QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % query)
+            print "findRandomRoutePoint query: " + query
+            
+            ##Utils.logMessage(query1)
+            cur = con.cursor()
+            cur.execute(query)
+            row = cur.fetchone()
+            wkt = None
+            this_x = None
+            this_y = None
+            if row:
+                wkt = row[0]
+                this_x = row[1]
+                this_y = row[2]
+            
+            print wkt, this_x, this_y
+            return True, this_x, this_y, wkt
+            
+        except psycopg2.DatabaseError, e:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            return False, None, None
+            
+        finally:
+            if db and db.con:
+                db.con.close()
+                
+    def findRandomRoutePoint(self, args):
+        
+        print "** findRandomRoutePoint"
+        
+        canvasCrs = Utils.getDestinationCrs(self.iface.mapCanvas())
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            if self.iface.mapCanvas().hasCrsTransformEnabled():
+                layerCrs = QgsCoordinateReferenceSystem()
+                Utils.createFromSrid(layerCrs, srid)
+            
+            args['canvas_srid'] = Utils.getCanvasSrid(canvasCrs)
+            args['srid'] = srid
+            args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            args['tmp_vertice_table'] = self.projectLayerList['tmp_vertice_table']
+
+            Utils.setCurrentPoint(geomType, args)
+            Utils.setTransformQuotes(args, srid, args['canvas_srid'])        
+            
+            
+            # Getting random source node from route
+            query = """
+                SELECT e.%(source)s,
+                ST_AsText(%(transform_s)s v.geom %(transform_e)s),
+                ST_X(%(transform_s)s v.geom, 4326)),
+                ST_Y(%(transform_s)s v.geom, 4326))
+                FROM %(results_schema)s.%(tmp_vertice_table)s as v, %(results_schema)s.%(tmp_route_table)s as e
+                WHERE
+                    v.id = e.%(source)s
+                    ORDER BY random()
+                    LIMIT 1""" % args
+                    
+            #QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % query)
+            print "findRandomRoutePoint query: " + query
+            
+            ##Utils.logMessage(query1)
+            cur = con.cursor()
+            cur.execute(query)
+            row = cur.fetchone()
+            node = None
+            wkt = None
+            this_x = None
+            this_y = None
+            if row:
+                node = row[0]
+                wkt = row[1]
+                this_x = row[2]
+                this_y = row[3]
+            
+            print node, wkt, this_x, this_y
+            return True, this_x, this_y, wkt
+            
+        except psycopg2.DatabaseError, e:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            return False, None, None, None
             
         finally:
             if db and db.con:
@@ -3812,6 +4093,14 @@ class orientationMapsCreator:
         self.dockwidget.checkBoxDirected.setChecked(Utils.getBoolValue(settings, '/orientationMapsCreator/directed', False))
         self.dockwidget.checkBoxHasReverseCost.setChecked(Utils.getBoolValue(settings, '/orientationMapsCreator/has_reverse_cost', False))
         self.dockwidget.checkBoxWithinApproxRndDist.setChecked(Utils.getBoolValue(settings, '/orientationMapsCreator/within_approx_rnd_dist', False))
+        
+        
+        # Contexts
+        self.dockwidget.lineEditCurrentLocation.setText(Utils.getStringValue(settings, '/orientationMapsCreator/current_location', ''))
+        idx = self.dockwidget.comboBoxFunctionalScale.findText(Utils.getStringValue(settings, '/orientationMapsCreator/functional_scale', '1 intersection'))
+        if idx >= 0:
+            self.dockwidget.comboBoxFunctionalScale.setCurrentIndex(idx)
+        
         
         # OPEN NRW
         idx = self.dockwidget.comboBoxOpenNRWSchema.findText(Utils.getStringValue(settings, '/orientationMapsCreator/open_nrw_schema', ''))
@@ -3868,6 +4157,10 @@ class orientationMapsCreator:
         settings.setValue('/orientationMapsCreator/directed', self.dockwidget.checkBoxDirected.isChecked())
         settings.setValue('/orientationMapsCreator/has_reverse_cost', self.dockwidget.checkBoxHasReverseCost.isChecked())
         settings.setValue('/orientationMapsCreator/within_approx_rnd_dist', self.dockwidget.checkBoxWithinApproxRndDist.isChecked())
+        
+        # Context
+        settings.setValue('/orientationMapsCreator/current_location', self.dockwidget.lineEditCurrentLocation.text())
+        settings.setValue('/orientationMapsCreator/functional_scale', self.dockwidget.comboBoxFunctionalScale.currentText())
         
         # OPEN NRW
         settings.setValue('/orientationMapsCreator/open_nrw_schema', self.dockwidget.comboBoxOpenNRWSchema.currentText())

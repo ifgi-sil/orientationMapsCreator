@@ -48,9 +48,9 @@
        <property name="geometry">
         <rect>
          <x>0</x>
-         <y>-1023</y>
+         <y>-666</y>
          <width>462</width>
-         <height>2026</height>
+         <height>2144</height>
         </rect>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout">
@@ -103,6 +103,13 @@
            <string>Database</string>
           </property>
           <layout class="QGridLayout" name="gridLayout_5">
+           <item row="0" column="0">
+            <widget class="QLabel" name="lblDatabase">
+             <property name="text">
+              <string>Database</string>
+             </property>
+            </widget>
+           </item>
            <item row="0" column="1">
             <widget class="QComboBox" name="comboBoxDatabase">
              <property name="sizePolicy">
@@ -110,13 +117,6 @@
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="0">
-            <widget class="QLabel" name="lblDatabase">
-             <property name="text">
-              <string>Database</string>
              </property>
             </widget>
            </item>
@@ -465,14 +465,14 @@
               <string>Load Route</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_2">
-              <item row="0" column="2">
+              <item row="1" column="2">
                <widget class="QToolButton" name="btnLoadRoute">
                 <property name="text">
                  <string>Load</string>
                 </property>
                </widget>
               </item>
-              <item row="0" column="1">
+              <item row="1" column="1">
                <widget class="QComboBox" name="comboBoxRouteTable">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -482,7 +482,7 @@
                 </property>
                </widget>
               </item>
-              <item row="0" column="0">
+              <item row="1" column="0">
                <widget class="QLabel" name="lblRouteTable">
                 <property name="text">
                  <string>Route Table</string>
@@ -525,6 +525,90 @@
                </widget>
               </item>
              </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="groupBoxContext">
+          <property name="title">
+           <string>Context</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_3">
+           <item row="0" column="1">
+            <widget class="QLineEdit" name="lineEditCurrentLocation"/>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="lblFunctionalScale">
+             <property name="text">
+              <string>Functional Scale</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QComboBox" name="comboBoxFunctionalScale">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <item>
+              <property name="text">
+               <string>1 intersection</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>2 neighborhood</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>3 city</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>4 region</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>5 route overview</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item row="0" column="0">
+            <widget class="QLabel" name="lblCurrentLocation">
+             <property name="text">
+              <string>Current Location</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="2">
+            <widget class="QToolButton" name="btnSelectCurrentLocation">
+             <property name="text">
+              <string>...</string>
+             </property>
+             <property name="icon">
+              <iconset theme="list-add"/>
+             </property>
+             <property name="checkable">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="3">
+            <widget class="QToolButton" name="btnSelectRandomCurrentLocation">
+             <property name="text">
+              <string>...</string>
+             </property>
+             <property name="icon">
+              <iconset theme="media-playlist-shuffle"/>
+             </property>
             </widget>
            </item>
           </layout>
