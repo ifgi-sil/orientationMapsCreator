@@ -96,6 +96,12 @@ class orientationMapsCreator:
         self.currentLocationRubberBand.setWidth(4)
         self.currentLocation = None
         
+        # Init marker for current functional scale
+        self.currentFunctionalScaleMarkers = []
+        self.currentFunctionalScaleRubberBand = QgsRubberBand(self.iface.mapCanvas(), Utils.getRubberBandType(False))
+        self.currentFunctionalScaleRubberBand.setColor(Qt.red)
+        self.currentFunctionalScaleRubberBand.setWidth(1)
+        
         #Items drawn on the canvas without saving to a layer
         self.canvasItemList = {}
         self.canvasItemList['markers'] = []
@@ -317,6 +323,7 @@ class orientationMapsCreator:
         QObject.connect(self.dockwidget.btnSelectCurrentLocation, SIGNAL("clicked(bool)"), self.selectCurrentLocation)
         QObject.connect(self.currentLocationEmitPoint, SIGNAL("canvasClicked(const QgsPoint&, Qt::MouseButton)"), self.setCurrentLocation)
         QObject.connect(self.dockwidget.btnSelectRandomCurrentLocation, SIGNAL("clicked()"), self.setRandomCurrentLocation)
+        QObject.connect(self.dockwidget.btnShowFunctionalScale, SIGNAL("clicked()"), self.showFunctionalScale)
         
         # OPEN NRW
         QObject.connect(self.dockwidget.comboBoxOpenNRWSchema, SIGNAL("currentIndexChanged(const QString&)"), self.updateOpenNRWSchemaIndexChanged)
@@ -1395,7 +1402,7 @@ class orientationMapsCreator:
             
             # Save start pnt
             uri_start = db.getURI()     
-            uri_start.setDataSource(args['results_schema'], args['tmp_vertice_table'], "geom", "seq = (SELECT min(seq) FROM "+ args['results_schema'] + "." + args['tmp_vertice_table'] +")", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            uri_start.setDataSource(args['results_schema'], args['tmp_vertice_table'], "geom", "seq = (SELECT min(seq) FROM "+ args['results_schema'] + "." + args['tmp_vertice_table'] +")", "seq")
             vl_start = self.iface.addVectorLayer(uri_start.uri(), args['tmp_vertice_table_start'], db.getProviderName())  
             if not vl_start:
                 QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
@@ -1406,7 +1413,7 @@ class orientationMapsCreator:
             
             # Save end pnt
             uri_end = db.getURI()     
-            uri_end.setDataSource(args['results_schema'], args['tmp_vertice_table'], "geom", "seq = (SELECT max(seq) FROM "+ args['results_schema'] + "." + args['tmp_vertice_table'] +")", "seq")     #path_geom holds route segments in correct subsequent order != geom
+            uri_end.setDataSource(args['results_schema'], args['tmp_vertice_table'], "geom", "seq = (SELECT max(seq) FROM "+ args['results_schema'] + "." + args['tmp_vertice_table'] +")", "seq")
             vl_end = self.iface.addVectorLayer(uri_end.uri(), args['tmp_vertice_table_end'], db.getProviderName())  
             if not vl_end:
                 QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
@@ -2066,7 +2073,7 @@ class orientationMapsCreator:
             self.projectLayerList['tmp_route_table_urban_labels_psql'] = vl_labels
             self.projectLayerList['tmp_route_table_urban_labels'] = args['tmp_route_table_urban_labels']
             
-            self.moveEnvironmentalRegions()
+            self.moveUrbanAreas()
             
             
         except psycopg2.DatabaseError, e:
@@ -2424,10 +2431,6 @@ class orientationMapsCreator:
             cur.execute(self.cleanQuery(query))
             con.commit()
             
-            #TODO: add layer to map?
-                
-            #self.moveEnvironmentalRegions()
-            
             
         except psycopg2.DatabaseError, e:
             print "** Database Error"
@@ -2499,19 +2502,28 @@ class orientationMapsCreator:
             
             args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
             args['tmp_vertice_table'] = self.projectLayerList['tmp_vertice_table']
-            args['tmp_route_table_osm_point'] = args['tmp_route_table'] + '_osm_point'
-            args['tmp_route_table_osm_line'] = args['tmp_route_table'] + '_osm_line'
-            args['tmp_route_table_osm_polygon'] = args['tmp_route_table'] + '_osm_polygon'
             args['tmp_route_table_osm_er'] = args['tmp_route_table'] + '_osm_er'
             args['tmp_route_table_osm_er_refined'] = args['tmp_route_table'] + '_osm_er_refined'
+            args['functional_scales_table'] = 'functional_scales'
+            args['category_weights_table'] = 'er_category_weights'
             
             args['functional_scale'] = self.dockwidget.comboBoxFunctionalScale.currentText().split()[0]
             
             if args['functional_scale'] == "5":
-                print "functional scale:", args['functional_scale']
+                print "yes: functional scale:", args['functional_scale']
                 #TODO set current location to 0,0 or start point
+                if self.currentLocation:
+                    print 'current location exists'
+                    args['x'] = self.currentLocation.asPoint().x()
+                    args['y'] = self.currentLocation.asPoint().y()
+                    print 'current point:',args['x'],args['y'], args['srid']
+                else:
+                    print 'current location does not exist'
+                    args['x'] = 0
+                    args['y'] = 0
+                    print 'current point:',args['x'],args['y'], args['srid']
             else:
-                print "functional scale:", args['functional_scale']
+                print "no: functional scale:", args['functional_scale']
                 #TODO get current location from saved value
                 if self.currentLocation:
                     print 'current location exists'
@@ -2531,19 +2543,141 @@ class orientationMapsCreator:
                 SELECT * FROM %(results_schema)s.%(tmp_vertice_table)s
             ),
             current_location as (
-                SELECT ST_GeomFromText('POINT(%(x)f %(y)f)', %(canvas_srid)d)
+                SELECT ST_GeomFromText('POINT(%(x)f %(y)f)', %(canvas_srid)d) as geom
             ),
+            scales as (
+                SELECT * FROM %(results_schema)s.%(functional_scales_table)s
+            ),
+            scale as (
+                SELECT * FROM scales WHERE id = %(functional_scale)s
+            ),
+            distance as (
+                SELECT 
+                    CASE WHEN id = 5 THEN (SELECT sum(km)*1000*0.1 FROM route)
+                    ELSE buffer_dist 
+                    END as distance
+                FROM scale
+            ),
+            buffer as (
+                SELECT 
+                    CASE WHEN (SELECT id FROM scale) = 5 THEN ST_Expand(ST_Transform((ST_Collect(r.geom)), 32632), (SELECT distance FROM distance))
+                    ELSE ST_Expand(ST_Transform((SELECT geom FROM current_location), 32632), (SELECT distance FROM distance)) 
+                    END as geom
+                FROM route as r
+            ),
+            features as (
+                SELECT * FROM %(results_schema)s.%(tmp_route_table_osm_er)s
+            ),
+            buffered_features as (
+                SELECT f.*
+                FROM features as f, buffer as b
+                WHERE ST_Intersects(
+                    ST_Transform(f.way,32632),
+                    ST_Transform(b.geom,32632)
+                )
+            ),
+            overlap_percent as (
+                SELECT f.osm_id, ST_Area(ST_Intersection(ST_Transform(b.geom,32632), ST_Transform(f.way,32632)))/ST_Area(ST_Transform(b.geom,32632)) as overlap_percent
+                FROM buffer as b, buffered_features as f
+            ),
+            coverage as (
+                SELECT b.*,
+                    CASE
+                        WHEN p.overlap_percent >= 1
+                        THEN 0
+                        ELSE p.overlap_percent
+                    END as coverage
+                FROM buffered_features as b, overlap_percent as p
+                WHERE b.osm_id = p.osm_id
+            ),
+            category_weight as (
+                SELECT p.*,
+                    CASE
+                        WHEN (p.boundary is not null AND p.landuse is not null)
+                        THEN (SELECT max(weight) FROM %(results_schema)s.%(category_weights_table)s 
+                            WHERE (osm_key = 'landuse' AND osm_value = p.landuse)
+                                OR (osm_key = 'boundary' AND osm_value = p.boundary))
+                        WHEN p.landuse is not null AND p.landuse IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s)
+                        THEN (SELECT weight
+                            FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'landuse' AND osm_value = p.landuse
+                        )
+                        WHEN p.landuse is not null AND NOT p.landuse IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s)
+                        THEN 1
+                        WHEN p.boundary is not null
+                        THEN (SELECT weight
+                            FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'boundary' AND osm_value = p.boundary
+                        )
+                        ELSE 0
+                    END as category_weight
+                FROM coverage as p
+            ),
+            distance_metric as (
+                SELECT *,
+                    CASE
+                        WHEN ST_Distance(ST_Transform((SELECT ST_Collect(geom) FROM route),32632),ST_Transform(way, 32632))
+                            > (SELECT distance FROM distance)
+                        THEN 0
+                        ELSE 1-ST_Distance(
+                                ST_Transform((SELECT ST_Collect(geom) FROM route),32632),
+                                ST_Transform(way, 32632)
+                            )/(SELECT distance FROM distance)
+                    END as distance
+                FROM category_weight
+            ),
+            relation as (
+                SELECT p.*,
+                    CASE
+                        WHEN ST_Intersects(ST_Transform(p.way, 32632), ST_Transform((SELECT ST_Collect(geom) FROM route), 32632))
+                        THEN 1
+                        ELSE 0.5
+                    END as relation
+                FROM distance_metric as p
+            
+            ),
+            counts as (
+                SELECT boundary, landuse, COUNT(*)::numeric as count
+                FROM relation
+                GROUP BY boundary, landuse
+            ),
+            uniqueness as (
+                SELECT r.*,
+                    CASE
+                    WHEN r.boundary in (SELECT boundary FROM counts)
+                    THEN (1/(SELECT count FROM counts as c WHERE c.boundary = r.boundary))
+                    WHEN r.landuse in (SELECT landuse FROM counts)
+                    THEN 1/(SELECT count FROM counts as c WHERE c.landuse = r.landuse)
+                    ELSE 1
+                END as uniqueness    
+                FROM relation as r
+            )
+            SELECT *, (coverage * (category_weight + relation + uniqueness + distance)) as salience
+            INTO %(results_schema)s.%(tmp_route_table_osm_er_refined)s
+            FROM uniqueness;
             """ % args
                 
             print "refineEnvironmentalRegions query: " + query
             
-            #Utils.logMessage('Query:\n' + query)
-            #cur.execute(self.cleanQuery(query))
-            #con.commit()
+            Utils.logMessage('Query:\n' + query)
+            cur.execute(self.cleanQuery(query))
+            con.commit()
+            
+            
+            # Specify tmp table in uri for loading in qgis as vector layer
+            uri = db.getURI()     
+            uri.setDataSource(args['results_schema'], args['tmp_route_table_osm_er_refined'], "way", "", "osm_id")
+            # Save to vector layer
+            vl = self.iface.addVectorLayer(uri.uri(), args['tmp_route_table_osm_er_refined'], db.getProviderName())  
+            if not vl:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+                return
+            # Style layer
+            #vl.loadNamedStyle(plugin_path + '/assets/styles/route.qml')         
+            
+            # Save layers
+            self.projectLayerList['tmp_route_table_osm_er_refined'] = vl
             
                 
-            #self.moveEnvironmentalRegions()
-            
+            self.moveEnvironmentalRegions()
             
         except psycopg2.DatabaseError, e:
             print "** Database Error"
@@ -2619,11 +2753,11 @@ class orientationMapsCreator:
                 SELECT * INTO %(results_schema)s.%(tmp_route_table_osm_pl)s 
                 FROM %(osm_schema)s.%(osm_points)s 
                 WHERE (
-                    amenity is not null OR
-                    leisure is not null OR
-                    tourism is not null OR
-                    shop is not null OR
-                    barrier is not null OR
+                    (amenity is not null AND name is not null) OR
+                    (leisure is not null AND name is not null) OR
+                    (tourism is not null AND name is not null) OR
+                    (historic is not null AND name is not null) OR
+                    (shop is not null AND name is not null) OR
                     (highway is not null AND tags -> 'bridge' IN ('yes')) OR
                     (highway is not null AND tags -> 'tunnel' IN ('yes')) OR
                     highway = 'bus_stop' OR
@@ -2640,7 +2774,7 @@ class orientationMapsCreator:
                     railway = 'level_crossing' OR
                     railway = 'platform' OR
                     railway = 'station' OR
-                    "natural" is not null)
+                    ("natural" is not null AND name is not null))
                     AND
                     ST_DWithin(
                         (SELECT ST_Transform((SELECT ST_Collect(geom) FROM %(results_schema)s.%(tmp_route_table)s),32632)),
@@ -2691,6 +2825,268 @@ class orientationMapsCreator:
         stop = timeit.default_timer()
         print('selectOSMPoints time: ', stop - start)
         
+        self.refineOSMPoint()
+        
+    def refineOSMPoint(self):
+        
+        print "** refineOSMPoint"
+        
+        start = timeit.default_timer()
+        
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        
+        empties = []
+        for key in args.keys():
+            if not args[key]:
+                empties.append(key)
+        
+        if len(empties) > 0:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                'Following argument is not specified.\n' + ','.join(empties))
+            return
+        
+        canvasCrs = Utils.getDestinationCrs(self.iface.mapCanvas())
+        
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+            
+            version = Utils.getPgrVersion(con)
+            args['version'] = version
+            if (self.version!=version) :
+                QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                  'versions are different')
+
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            
+            args['srid'] = srid
+            args['canvas_srid'] = Utils.getCanvasSrid(canvasCrs)
+            
+            args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            args['tmp_vertice_table'] = self.projectLayerList['tmp_vertice_table']
+            args['tmp_vertice_table_buffer_dps'] = args['tmp_route_table'] + '_buffer_dps'
+            args['tmp_route_table_osm_pl'] = args['tmp_route_table'] + '_osm_pl'
+            args['tmp_route_table_osm_pl_refined'] = args['tmp_route_table'] + '_osm_pl_refined'
+            args['functional_scales_table'] = 'functional_scales'
+            args['category_weights_table'] = 'pl_category_weights'
+            
+            args['functional_scale'] = self.dockwidget.comboBoxFunctionalScale.currentText().split()[0]
+            
+            if args['functional_scale'] == "5":
+                print "yes: functional scale:", args['functional_scale']
+                #TODO set current location to 0,0 or start point
+                if self.currentLocation:
+                    print 'current location exists'
+                    args['x'] = self.currentLocation.asPoint().x()
+                    args['y'] = self.currentLocation.asPoint().y()
+                    print 'current point:',args['x'],args['y'], args['srid']
+                else:
+                    print 'current location does not exist'
+                    args['x'] = 0
+                    args['y'] = 0
+                    print 'current point:',args['x'],args['y'], args['srid']
+            else:
+                print "no: functional scale:", args['functional_scale']
+                #TODO get current location from saved value
+                if self.currentLocation:
+                    print 'current location exists'
+                    args['x'] = self.currentLocation.asPoint().x()
+                    args['y'] = self.currentLocation.asPoint().y()
+                    print 'current point:',args['x'],args['y'], args['srid']
+                else:
+                    print 'current location does not exist'
+                    raise IOError('Current location not found')
+            
+            #SQL Query
+            query = """DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_osm_pl_refined)s;
+            WITH route as (
+                SELECT * FROM %(results_schema)s.%(tmp_route_table)s
+            ),
+            vertices as (
+                SELECT * FROM %(results_schema)s.%(tmp_vertice_table)s
+            ),
+            current_location as (
+                SELECT ST_GeomFromText('POINT(%(x)f %(y)f)', %(canvas_srid)d) as geom
+            ),
+            scales as (
+                SELECT * FROM %(results_schema)s.%(functional_scales_table)s
+            ),
+            scale as (
+                SELECT * FROM scales WHERE id = %(functional_scale)s
+            ),
+            distance as (
+                SELECT 
+                    CASE WHEN id = 5 THEN (SELECT sum(km)*1000*0.1 FROM route)
+                    ELSE buffer_dist 
+                    END as distance
+                FROM scale
+            ),
+            buffer as (
+                SELECT 
+                    CASE WHEN (SELECT id FROM scale) = 5 THEN ST_Expand(ST_Transform((ST_Collect(r.geom)), 32632), (SELECT distance FROM distance))
+                    ELSE ST_Expand(ST_Transform((SELECT geom FROM current_location), 32632), (SELECT distance FROM distance)) 
+                    END as geom
+                FROM route as r
+            ),
+            features as (
+                SELECT * FROM %(results_schema)s.%(tmp_route_table_osm_pl)s
+            ),
+            buffered_features as (
+                SELECT f.*
+                FROM features as f, buffer as b
+                WHERE ST_Intersects(
+                    ST_Transform(f.way,32632),
+                    ST_Transform(b.geom,32632)
+                )
+            ),
+            category_weight as (
+                SELECT f.*,
+                    CASE
+                        WHEN (f.amenity is not null AND f.amenity IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s))
+                        THEN (SELECT weight FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'amenity' AND osm_value = f.amenity)
+                        WHEN (f.leisure is not null AND f.leisure IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s))
+                        THEN (SELECT weight FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'leisure' AND osm_value = f.leisure)
+                        WHEN (f.tourism is not null AND f.tourism IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s))
+                        THEN (SELECT weight FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'tourism' AND osm_value = f.tourism)
+                        WHEN (f.historic is not null AND f.historic IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s))
+                        THEN (SELECT weight FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'historic' AND osm_value = f.historic)
+                        WHEN (f.shop is not null AND f.shop IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s))
+                        THEN (SELECT weight FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'shop' AND osm_value = f.shop)
+                        WHEN (f.highway is not null AND f.highway IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s))
+                        THEN (SELECT weight FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'highway' AND osm_value = f.highway)
+                        WHEN (f.junction is not null AND f.junction IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s))
+                        THEN (SELECT weight FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'junction' AND osm_value = f.junction)
+                        WHEN (f.railway is not null AND f.railway IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s))
+                        THEN (SELECT weight FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'railway' AND osm_value = f.railway)
+                        WHEN (f.natural is not null AND f.natural IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s))
+                        THEN (SELECT weight FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'natural' AND osm_value = f.natural)
+                        ELSE 1
+                    END as category_weight
+                FROM buffered_features as f
+            ),
+            distance_metric as (
+                SELECT *,
+                    CASE
+                        WHEN ST_Distance(ST_Transform((SELECT ST_Collect(geom) FROM route),32632),ST_Transform(way, 32632))
+                            > (SELECT distance FROM distance)
+                        THEN 0
+                        ELSE 1-ST_Distance(
+                                ST_Transform((SELECT ST_Collect(geom) FROM route),32632),
+                                ST_Transform(way, 32632)
+                            )/(SELECT distance FROM distance)
+                    END as distance
+                FROM category_weight
+            ),
+            nearest_point as (
+                SELECT osm_id,
+                    ST_ClosestPoint(ST_Transform((SELECT ST_Collect(geom) FROM route),32632),ST_Transform(way,32632)) as closest_point
+                FROM distance_metric
+            ),
+            buffer_dps as (
+                SELECT ST_Buffer((ST_Transform((ST_Collect((ST_LineMerge(geom)))),32632)),1) as geom FROM %(results_schema)s.%(tmp_vertice_table_buffer_dps)s
+            ),
+            relation as (
+                SELECT dm.*,
+                    CASE
+                        WHEN ST_Intersects(
+                            ST_Transform(closest_point,32632), 
+                            ST_Transform((SELECT geom FROM buffer_dps),32632))
+                        THEN 1
+                        ELSE 0.5
+                    END as relation
+                FROM nearest_point as np, distance_metric as dm
+                WHERE np.osm_id = dm.osm_id
+            ),
+            counts as (
+                SELECT amenity,leisure,tourism,historic,shop,highway,junction,railway,"natural", COUNT(*)::numeric as count
+                FROM relation
+                GROUP BY amenity,leisure,tourism,historic,shop,highway,junction,railway,"natural"
+            ),
+            uniqueness as (
+                SELECT r.*,
+                    CASE
+                    WHEN r.amenity in (SELECT amenity FROM counts)
+                    THEN (1/(SELECT sum(count) FROM counts as c WHERE c.amenity = r.amenity))
+                    WHEN r.leisure in (SELECT leisure FROM counts)
+                    THEN 1/(SELECT sum(count) FROM counts as c WHERE c.leisure = r.leisure)
+                    WHEN r.tourism in (SELECT tourism FROM counts)
+                    THEN 1/(SELECT sum(count) FROM counts as c WHERE c.tourism = r.tourism)
+                    WHEN r.historic in (SELECT historic FROM counts)
+                    THEN 1/(SELECT sum(count) FROM counts as c WHERE c.historic = r.historic)
+                    WHEN r.shop in (SELECT shop FROM counts)
+                    THEN 1/(SELECT sum(count) FROM counts as c WHERE c.shop is not null)
+                    WHEN r.highway in (SELECT highway FROM counts)
+                    THEN 1/(SELECT sum(count) FROM counts as c WHERE c.highway = r.highway)
+                    WHEN r.junction in (SELECT junction FROM counts)
+                    THEN 1/(SELECT sum(count) FROM counts as c WHERE c.junction = r.junction)
+                    WHEN r.railway in (SELECT railway FROM counts)
+                    THEN 1/(SELECT sum(count) FROM counts as c WHERE c.railway = r.railway)
+                    WHEN r."natural" in (SELECT "natural" FROM counts)
+                    THEN 1/(SELECT sum(count) FROM counts as c WHERE c."natural" = r."natural")
+                    ELSE 1
+                END as uniqueness    
+                FROM relation as r
+            )
+            SELECT *, (category_weight + distance + relation + uniqueness) as salience
+            INTO %(results_schema)s.%(tmp_route_table_osm_pl_refined)s
+            FROM uniqueness;
+            """ % args
+                
+            print "refineOSMPoint query: " + query
+            
+            Utils.logMessage('Query:\n' + query)
+            cur.execute(self.cleanQuery(query))
+            con.commit()
+                
+            # Specify tmp table in uri for loading in qgis as vector layer
+            uri = db.getURI()     
+            uri.setDataSource(args['results_schema'], args['tmp_route_table_osm_pl_refined'], "way", "", "osm_id")
+            # Save to vector layer
+            vl = self.iface.addVectorLayer(uri.uri(), args['tmp_route_table_osm_pl_refined'], db.getProviderName())  
+            if not vl:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+                return
+            # Style layer
+            #vl.loadNamedStyle(plugin_path + '/assets/styles/route.qml')         
+            
+            # Save layers
+            self.projectLayerList['tmp_route_table_osm_pl_refined'] = vl
+            
+                
+            self.moveOSMPoints()
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except IOError, e:
+            print "** IO Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')
+                  
+        stop = timeit.default_timer()
+        print('refineOSMPoint time: ', stop - start)
+        
         
     def selectOSMLines(self):
         """Functions to select points features from OSM data
@@ -2738,12 +3134,15 @@ class orientationMapsCreator:
                 SELECT * INTO %(results_schema)s.%(tmp_route_table_osm_ll)s 
                 FROM %(osm_schema)s.%(osm_lines)s 
                 WHERE (
-                    barrier is not null OR
+                    (barrier is not null 
+                        AND (tags -> 'height' IS NOT NULL OR tags -> 'fence_type' IS NOT NULL OR tags -> 'description' IS NOT NULL)
+                    ) OR
                     (highway is not null AND tags -> 'bridge' IN ('yes')) OR
                     (highway is not null AND tags -> 'tunnel' IN ('yes')) OR
                     railway = 'rail' OR
                     waterway is not null OR
-                    "natural" is not null)
+                    ("natural" is not null AND name is not null)
+                    )
                     AND
                     ST_DWithin(
                         (SELECT ST_Transform((SELECT ST_Collect(geom) FROM %(results_schema)s.%(tmp_route_table)s),32632)),
@@ -2792,6 +3191,252 @@ class orientationMapsCreator:
         
         stop = timeit.default_timer()
         print('selectOSMLines time: ', stop - start)
+        
+        self.refineOSMLines()
+        
+    def refineOSMLines(self):
+        
+        print "** refineOSMLines"
+        
+        start = timeit.default_timer()
+        
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        
+        empties = []
+        for key in args.keys():
+            if not args[key]:
+                empties.append(key)
+        
+        if len(empties) > 0:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                'Following argument is not specified.\n' + ','.join(empties))
+            return
+        
+        canvasCrs = Utils.getDestinationCrs(self.iface.mapCanvas())
+        
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+            
+            version = Utils.getPgrVersion(con)
+            args['version'] = version
+            if (self.version!=version) :
+                QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                  'versions are different')
+
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            
+            args['srid'] = srid
+            args['canvas_srid'] = Utils.getCanvasSrid(canvasCrs)
+            
+            args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            args['tmp_vertice_table'] = self.projectLayerList['tmp_vertice_table']
+            args['tmp_vertice_table_buffer_dps'] = args['tmp_route_table'] + '_buffer_dps'
+            args['tmp_route_table_osm_ll'] = args['tmp_route_table'] + '_osm_ll'
+            args['tmp_route_table_osm_ll_refined'] = args['tmp_route_table'] + '_osm_ll_refined'
+            args['functional_scales_table'] = 'functional_scales'
+            args['category_weights_table'] = 'll_category_weights'
+            
+            args['functional_scale'] = self.dockwidget.comboBoxFunctionalScale.currentText().split()[0]
+            
+            if args['functional_scale'] == "5":
+                print "yes: functional scale:", args['functional_scale']
+                #TODO set current location to 0,0 or start point
+                if self.currentLocation:
+                    print 'current location exists'
+                    args['x'] = self.currentLocation.asPoint().x()
+                    args['y'] = self.currentLocation.asPoint().y()
+                    print 'current point:',args['x'],args['y'], args['srid']
+                else:
+                    print 'current location does not exist'
+                    args['x'] = 0
+                    args['y'] = 0
+                    print 'current point:',args['x'],args['y'], args['srid']
+            else:
+                print "no: functional scale:", args['functional_scale']
+                #TODO get current location from saved value
+                if self.currentLocation:
+                    print 'current location exists'
+                    args['x'] = self.currentLocation.asPoint().x()
+                    args['y'] = self.currentLocation.asPoint().y()
+                    print 'current point:',args['x'],args['y'], args['srid']
+                else:
+                    print 'current location does not exist'
+                    raise IOError('Current location not found')
+            
+            #SQL Query
+            query = """DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_osm_ll_refined)s;
+            WITH route as (
+                SELECT * FROM %(results_schema)s.%(tmp_route_table)s
+            ),
+            vertices as (
+                SELECT * FROM %(results_schema)s.%(tmp_vertice_table)s
+            ),
+            current_location as (
+                SELECT ST_GeomFromText('POINT(%(x)f %(y)f)', %(canvas_srid)d) as geom
+            ),
+            scales as (
+                SELECT * FROM %(results_schema)s.%(functional_scales_table)s
+            ),
+            scale as (
+                SELECT * FROM scales WHERE id = %(functional_scale)s
+            ),
+            distance as (
+                SELECT 
+                    CASE WHEN id = 5 THEN (SELECT sum(km)*1000*0.1 FROM route)
+                    ELSE buffer_dist 
+                    END as distance
+                FROM scale
+            ),
+            buffer as (
+                SELECT 
+                    CASE WHEN (SELECT id FROM scale) = 5 THEN ST_Expand(ST_Transform((ST_Collect(r.geom)), 32632), (SELECT distance FROM distance))
+                    ELSE ST_Expand(ST_Transform((SELECT geom FROM current_location), 32632), (SELECT distance FROM distance)) 
+                    END as geom
+                FROM route as r
+            ),
+            features as (
+                SELECT * FROM %(results_schema)s.%(tmp_route_table_osm_ll)s
+            ),
+            buffered_features as (
+                SELECT f.*
+                FROM features as f, buffer as b
+                WHERE ST_Intersects(
+                    ST_Transform(f.way,32632),
+                    ST_Transform(b.geom,32632)
+                )
+            ),
+            category_weight as (
+                SELECT f.*,
+                    CASE
+                        WHEN (f.barrier is not null AND f.barrier IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s))
+                        THEN (SELECT weight FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'barrier' AND osm_value = f.barrier)
+                        WHEN (f.highway is not null AND f.highway IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s))
+                        THEN (SELECT weight FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'highway' AND osm_value = f.highway)
+                        WHEN (f.railway is not null AND f.railway IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s))
+                        THEN (SELECT weight FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'railway' AND osm_value = f.railway)
+                        WHEN (f.waterway is not null AND f.waterway IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s))
+                        THEN (SELECT weight FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'waterway' AND osm_value = f.waterway)
+                        WHEN (f.natural is not null AND f.natural IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s))
+                        THEN (SELECT weight FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'natural' AND osm_value = f.natural)
+                        ELSE 1
+                    END as category_weight
+                FROM buffered_features as f
+            ),
+            distance_metric as (
+                SELECT *,
+                    CASE
+                        WHEN ST_Distance(ST_Transform((SELECT ST_Collect(geom) FROM route),32632),ST_Transform(way, 32632))
+                            > (SELECT distance FROM distance)
+                        THEN 0
+                        ELSE 1-ST_Distance(
+                                ST_Transform((SELECT ST_Collect(geom) FROM route),32632),
+                                ST_Transform(way, 32632)
+                            )/(SELECT distance FROM distance)
+                    END as distance
+                FROM category_weight
+            ),
+            nearest_point as (
+                SELECT osm_id,
+                    ST_ClosestPoint(ST_Transform((SELECT ST_Collect(geom) FROM route),32632),ST_Transform(way,32632)) as closest_point
+                FROM distance_metric
+            ),
+            buffer_dps as (
+                SELECT ST_Buffer((ST_Transform((ST_Collect((ST_LineMerge(geom)))),32632)),1) as geom FROM %(results_schema)s.%(tmp_vertice_table_buffer_dps)s
+            ),
+            relation as (
+                SELECT dm.*,
+                    CASE
+                        WHEN ST_Intersects(
+                            ST_Transform(closest_point,32632), 
+                            ST_Transform((SELECT geom FROM buffer_dps),32632))
+                        THEN 1
+                        ELSE 0.5
+                    END as relation
+                FROM nearest_point as np, distance_metric as dm
+                WHERE np.osm_id = dm.osm_id
+            ),
+            counts as (
+                SELECT barrier,highway,junction,railway,waterway,"natural", COUNT(*)::numeric as count
+                FROM relation
+                GROUP BY barrier,highway,junction,railway,waterway,"natural"
+            ),
+            uniqueness as (
+                SELECT r.*,
+                    CASE
+                    WHEN r.barrier in (SELECT barrier FROM counts)
+                    THEN 1/(SELECT sum(count) FROM counts as c WHERE c.barrier = r.barrier)
+                    WHEN r.highway in (SELECT highway FROM counts)
+                    THEN 1/(SELECT sum(count) FROM counts as c WHERE c.highway = r.highway)
+                    WHEN r.railway in (SELECT railway FROM counts)
+                    THEN 1/(SELECT sum(count) FROM counts as c WHERE c.railway = r.railway)
+                    WHEN r.waterway in (SELECT waterway FROM counts)
+                    THEN 1/(SELECT sum(count) FROM counts as c WHERE c.waterway = r.waterway)
+                    WHEN r."natural" in (SELECT "natural" FROM counts)
+                    THEN 1/(SELECT sum(count) FROM counts as c WHERE c."natural" = r."natural")
+                    ELSE 1
+                END as uniqueness    
+                FROM relation as r
+            )
+            SELECT *, (category_weight + distance + relation + uniqueness) as salience
+            INTO %(results_schema)s.%(tmp_route_table_osm_ll_refined)s
+            FROM uniqueness;
+            """ % args
+                
+            print "refineOSMLines query: " + query
+            
+            Utils.logMessage('Query:\n' + query)
+            cur.execute(self.cleanQuery(query))
+            con.commit()
+                
+            # Specify tmp table in uri for loading in qgis as vector layer
+            uri = db.getURI()     
+            uri.setDataSource(args['results_schema'], args['tmp_route_table_osm_ll_refined'], "way", "", "osm_id")
+            # Save to vector layer
+            vl = self.iface.addVectorLayer(uri.uri(), args['tmp_route_table_osm_ll_refined'], db.getProviderName())  
+            if not vl:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+                return
+            # Style layer
+            #vl.loadNamedStyle(plugin_path + '/assets/styles/route.qml')         
+            
+            # Save layers
+            self.projectLayerList['tmp_route_table_osm_ll_refined'] = vl
+            
+                
+            self.moveOSMLines()
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except IOError, e:
+            print "** IO Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')
+                  
+        stop = timeit.default_timer()
+        print('refineOSMLines time: ', stop - start)
         
         
     def selectOSMPolygons(self):
@@ -2893,6 +3538,251 @@ class orientationMapsCreator:
         stop = timeit.default_timer()
         print('selectOSMPolygons time: ', stop - start)
         
+        self.refineOSMPolygons()
+        
+    def refineOSMPolygons(self):
+        
+        print "** refineOSMPolygons"
+        
+        start = timeit.default_timer()
+        
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        
+        empties = []
+        for key in args.keys():
+            if not args[key]:
+                empties.append(key)
+        
+        if len(empties) > 0:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                'Following argument is not specified.\n' + ','.join(empties))
+            return
+        
+        canvasCrs = Utils.getDestinationCrs(self.iface.mapCanvas())
+        
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+            
+            version = Utils.getPgrVersion(con)
+            args['version'] = version
+            if (self.version!=version) :
+                QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                  'versions are different')
+
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            
+            args['srid'] = srid
+            args['canvas_srid'] = Utils.getCanvasSrid(canvasCrs)
+            
+            args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            args['tmp_vertice_table'] = self.projectLayerList['tmp_vertice_table']
+            args['tmp_vertice_table_buffer_dps'] = args['tmp_route_table'] + '_buffer_dps'
+            args['tmp_route_table_osm_al'] = args['tmp_route_table'] + '_osm_al'
+            args['tmp_route_table_osm_al_refined'] = args['tmp_route_table'] + '_osm_al_refined'
+            args['functional_scales_table'] = 'functional_scales'
+            args['category_weights_table'] = 'al_category_weights'
+            
+            args['functional_scale'] = self.dockwidget.comboBoxFunctionalScale.currentText().split()[0]
+            
+            if args['functional_scale'] == "5":
+                print "yes: functional scale:", args['functional_scale']
+                #TODO set current location to 0,0 or start point
+                if self.currentLocation:
+                    print 'current location exists'
+                    args['x'] = self.currentLocation.asPoint().x()
+                    args['y'] = self.currentLocation.asPoint().y()
+                    print 'current point:',args['x'],args['y'], args['srid']
+                else:
+                    print 'current location does not exist'
+                    args['x'] = 0
+                    args['y'] = 0
+                    print 'current point:',args['x'],args['y'], args['srid']
+            else:
+                print "no: functional scale:", args['functional_scale']
+                #TODO get current location from saved value
+                if self.currentLocation:
+                    print 'current location exists'
+                    args['x'] = self.currentLocation.asPoint().x()
+                    args['y'] = self.currentLocation.asPoint().y()
+                    print 'current point:',args['x'],args['y'], args['srid']
+                else:
+                    print 'current location does not exist'
+                    raise IOError('Current location not found')
+            
+            #SQL Query
+            query = """DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_osm_al_refined)s;
+            WITH route as (
+                SELECT * FROM %(results_schema)s.%(tmp_route_table)s
+            ),
+            vertices as (
+                SELECT * FROM %(results_schema)s.%(tmp_vertice_table)s
+            ),
+            current_location as (
+                SELECT ST_GeomFromText('POINT(%(x)f %(y)f)', %(canvas_srid)d) as geom
+            ),
+            scales as (
+                SELECT * FROM %(results_schema)s.%(functional_scales_table)s
+            ),
+            scale as (
+                SELECT * FROM scales WHERE id = %(functional_scale)s
+            ),
+            distance as (
+                SELECT 
+                    CASE WHEN id = 5 THEN (SELECT sum(km)*1000*0.1 FROM route)
+                    ELSE buffer_dist 
+                    END as distance
+                FROM scale
+            ),
+            buffer as (
+                SELECT 
+                    CASE WHEN (SELECT id FROM scale) = 5 THEN ST_Expand(ST_Transform((ST_Collect(r.geom)), 32632), (SELECT distance FROM distance))
+                    ELSE ST_Expand(ST_Transform((SELECT geom FROM current_location), 32632), (SELECT distance FROM distance)) 
+                    END as geom
+                FROM route as r
+            ),
+            features as (
+                SELECT * FROM %(results_schema)s.%(tmp_route_table_osm_al)s
+            ),
+            buffered_features as (
+                SELECT f.*
+                FROM features as f, buffer as b
+                WHERE ST_Intersects(
+                    ST_Transform(f.way,32632),
+                    ST_Transform(b.geom,32632)
+                )
+            ),
+            category_weight as (
+                SELECT f.*,
+                    CASE
+                        WHEN (f.amenity is not null AND f.amenity IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s))
+                        THEN (SELECT weight FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'amenity' AND osm_value = f.amenity)
+                        WHEN (f.leisure is not null AND f.leisure IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s))
+                        THEN (SELECT weight FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'leisure' AND osm_value = f.leisure)
+                        WHEN (f.tourism is not null AND f.tourism IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s))
+                        THEN (SELECT weight FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'tourism' AND osm_value = f.tourism)
+                        WHEN (f.historic is not null AND f.historic IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s))
+                        THEN (SELECT weight FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'historic' AND osm_value = f.historic)
+                        WHEN (f.natural is not null AND f.natural IN (SELECT osm_value FROM %(results_schema)s.%(category_weights_table)s))
+                        THEN (SELECT weight FROM %(results_schema)s.%(category_weights_table)s WHERE osm_key = 'natural' AND osm_value = f.natural)
+                        ELSE 1
+                    END as category_weight
+                FROM buffered_features as f
+            ),
+            distance_metric as (
+                SELECT *,
+                    CASE
+                        WHEN ST_Distance(ST_Transform((SELECT ST_Collect(geom) FROM route),32632),ST_Transform(way, 32632))
+                            > (SELECT distance FROM distance)
+                        THEN 0
+                        ELSE 1-ST_Distance(
+                                ST_Transform((SELECT ST_Collect(geom) FROM route),32632),
+                                ST_Transform(way, 32632)
+                            )/(SELECT distance FROM distance)
+                    END as distance
+                FROM category_weight
+            ),
+            nearest_point as (
+                SELECT osm_id,
+                    ST_ClosestPoint(ST_Transform((SELECT ST_Collect(geom) FROM route),32632),ST_Transform(way,32632)) as closest_point
+                FROM distance_metric
+            ),
+            buffer_dps as (
+                SELECT ST_Buffer((ST_Transform((ST_Collect((ST_LineMerge(geom)))),32632)),1) as geom FROM %(results_schema)s.%(tmp_vertice_table_buffer_dps)s
+            ),
+            relation as (
+                SELECT dm.*,
+                    CASE
+                        WHEN ST_Intersects(
+                            ST_Transform(closest_point,32632), 
+                            ST_Transform((SELECT geom FROM buffer_dps),32632))
+                        THEN 1
+                        ELSE 0.5
+                    END as relation
+                FROM nearest_point as np, distance_metric as dm
+                WHERE np.osm_id = dm.osm_id
+            ),
+            counts as (
+                SELECT amenity,leisure,tourism,historic,"natural", COUNT(*)::numeric as count
+                FROM relation
+                GROUP BY amenity,leisure,tourism,historic,"natural"
+            ),
+            uniqueness as (
+                SELECT r.*,
+                    CASE
+                    WHEN r.amenity in (SELECT amenity FROM counts)
+                    THEN (1/(SELECT sum(count) FROM counts as c WHERE c.amenity = r.amenity))
+                    WHEN r.leisure in (SELECT leisure FROM counts)
+                    THEN 1/(SELECT sum(count) FROM counts as c WHERE c.leisure = r.leisure)
+                    WHEN r.tourism in (SELECT tourism FROM counts)
+                    THEN 1/(SELECT sum(count) FROM counts as c WHERE c.tourism = r.tourism)
+                    WHEN r.historic in (SELECT historic FROM counts)
+                    THEN 1/(SELECT sum(count) FROM counts as c WHERE c.historic = r.historic)
+                    WHEN r."natural" in (SELECT "natural" FROM counts)
+                    THEN 1/(SELECT sum(count) FROM counts as c WHERE c."natural" = r."natural")
+                    ELSE 1
+                END as uniqueness    
+                FROM relation as r
+            )
+            SELECT *, (category_weight + distance + relation + uniqueness) as salience
+            INTO %(results_schema)s.%(tmp_route_table_osm_al_refined)s
+            FROM uniqueness;
+            """ % args
+                
+            print "refineOSMPolygons query: " + query
+            
+            Utils.logMessage('Query:\n' + query)
+            cur.execute(self.cleanQuery(query))
+            con.commit()
+                
+            # Specify tmp table in uri for loading in qgis as vector layer
+            uri = db.getURI()     
+            uri.setDataSource(args['results_schema'], args['tmp_route_table_osm_al_refined'], "way", "", "osm_id")
+            # Save to vector layer
+            vl = self.iface.addVectorLayer(uri.uri(), args['tmp_route_table_osm_al_refined'], db.getProviderName())  
+            if not vl:
+                QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Invalid Layer:\n - No paths found or\n - Failed to create vector layer from query')
+                return
+            # Style layer
+            #vl.loadNamedStyle(plugin_path + '/assets/styles/route.qml')         
+            
+            # Save layers
+            self.projectLayerList['tmp_route_table_osm_al_refined'] = vl
+            
+                
+            self.moveOSMPolygons()
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except IOError, e:
+            print "** IO Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')
+                  
+        stop = timeit.default_timer()
+        print('refineOSMPolygons time: ', stop - start)
         
         
     def genericDatabaseFunction(self):
@@ -3098,9 +3988,9 @@ class orientationMapsCreator:
         self.projectLayerPanel['route'].insertChildNode(0,node_clone)
         self.projectLayerPanel['root'].removeChildNode(node)
         
-    def moveEnvironmentalRegions(self):
+    def moveUrbanAreas(self):
         
-        print "** moveEnvironmentalRegions"
+        print "** moveUrbanAreas"
         
         # Urban areas
         node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['tmp_route_table_urban_areas_psql'].id())
@@ -3116,11 +4006,60 @@ class orientationMapsCreator:
         node_clone.setExpanded(False)
         self.projectLayerPanel['environmental_regions'].insertChildNode(0,node_clone)
         self.projectLayerPanel['root'].removeChildNode(node)
-        self.projectLayerPanel['default'].removeChildNode(node)        
+        self.projectLayerPanel['default'].removeChildNode(node)
+        
+    def moveEnvironmentalRegions(self):
+        
+        print "** moveEnvironmentalRegions"
+        
+        # Urban labels
+        node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['tmp_route_table_osm_er_refined'].id())
+        node_clone = node.clone()
+        node_clone.setExpanded(False)
+        self.projectLayerPanel['environmental_regions'].insertChildNode(0,node_clone)
+        self.projectLayerPanel['root'].removeChildNode(node)
+        self.projectLayerPanel['default'].removeChildNode(node)   
+        
+        
+    def moveOSMPoints(self):
+        
+        print "** moveOSMPoints"
+        
+        # Urban labels
+        node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['tmp_route_table_osm_pl_refined'].id())
+        node_clone = node.clone()
+        node_clone.setExpanded(False)
+        self.projectLayerPanel['point_features'].insertChildNode(0,node_clone)
+        self.projectLayerPanel['root'].removeChildNode(node)
+        self.projectLayerPanel['default'].removeChildNode(node)    
+        
+    def moveOSMLines(self):
+        
+        print "** moveOSMLines"
+        
+        # Urban labels
+        node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['tmp_route_table_osm_ll_refined'].id())
+        node_clone = node.clone()
+        node_clone.setExpanded(False)
+        self.projectLayerPanel['line_features'].insertChildNode(0,node_clone)
+        self.projectLayerPanel['root'].removeChildNode(node)
+        self.projectLayerPanel['default'].removeChildNode(node)    
+        
+    def moveOSMPolygons(self):
+        
+        print "** moveOSMPolygons"
+        
+        # Urban labels
+        node = self.projectLayerPanel['root'].findLayer(self.projectLayerList['tmp_route_table_osm_al_refined'].id())
+        node_clone = node.clone()
+        node_clone.setExpanded(False)
+        self.projectLayerPanel['polygon_features'].insertChildNode(0,node_clone)
+        self.projectLayerPanel['root'].removeChildNode(node)
+        self.projectLayerPanel['default'].removeChildNode(node)    
         
     def moveAdministrativeRegions(self):
         
-        print "** moveEnvironmentalRegions"
+        print "** moveAdministrativeRegions"
         
         # Adminlevel 9
         if 'tmp_route_table_adminlevel_9_psql' in self.projectLayerList.keys():
@@ -3588,6 +4527,7 @@ class orientationMapsCreator:
         self.targetIdVertexMarker.setVisible(False)
         #self.dock.lineEditTargetPos.setText("0.5")
         self.currentLocationVertexMarker.setVisible(False)
+        self.currentFunctionalScaleRubberBand.setVisible(False)
         for rubberBand in self.idsRubberBands:
             rubberBand.reset(Utils.getRubberBandType(False))
         self.idsRubberBands = []
@@ -4048,6 +4988,166 @@ class orientationMapsCreator:
             if db and db.con:
                 db.con.close()
                 
+    def showFunctionalScale(self):
+        
+        print "** showFunctionalScale"
+        
+        function = self.functions['dijkstra']
+        args = self.getArguments(function.getControlNames(self.version))
+        
+        if not function.isEdgeBase():
+            result, wkt = self.getFunctionalScaleGeometry(args)
+            if result:
+                geom = QgsGeometry().fromWkt(wkt)
+                self.currentFunctionalScaleRubberBand.setToGeometry(geom,None)
+                self.currentFunctionalScaleRubberBand.setVisible(True)
+        else:
+            QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'isEdgeBase.')
+              
+        Utils.refreshMapCanvas(self.iface.mapCanvas())
+        
+    def getFunctionalScaleGeometry(self, args):
+        
+        print "** getFunctionalScaleGeometry"
+        
+        start = timeit.default_timer()
+        
+        empties = []
+        for key in args.keys():
+            if not args[key]:
+                empties.append(key)
+        
+        if len(empties) > 0:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                'Following argument is not specified.\n' + ','.join(empties))
+            return
+        
+        canvasCrs = Utils.getDestinationCrs(self.iface.mapCanvas())
+        
+        db = None
+        try:
+            dbname = str(self.dockwidget.comboBoxDatabase.currentText())            
+            db = self.connectionsDB[dbname].connect()
+            con = db.con
+            cur = con.cursor()
+            
+            version = Utils.getPgrVersion(con)
+            args['version'] = version
+            if (self.version!=version) :
+                QMessageBox.warning(self.dockwidget, self.dockwidget.windowTitle(),
+                  'versions are different')
+
+            srid, geomType = Utils.getSridAndGeomType(con, args)
+            
+            args['srid'] = srid
+            args['canvas_srid'] = Utils.getCanvasSrid(canvasCrs)
+            
+            args['tmp_route_table'] = self.projectLayerList['tmp_route_table']
+            args['tmp_vertice_table'] = self.projectLayerList['tmp_vertice_table']
+            args['functional_scales_table'] = 'functional_scales'
+            
+            args['functional_scale'] = self.dockwidget.comboBoxFunctionalScale.currentText().split()[0]
+            
+            if args['functional_scale'] == "5":
+                print "yes: functional scale:", args['functional_scale']
+                #TODO set current location to 0,0 or start point
+                if self.currentLocation:
+                    print 'current location exists'
+                    args['x'] = self.currentLocation.asPoint().x()
+                    args['y'] = self.currentLocation.asPoint().y()
+                    print 'current point:',args['x'],args['y'], args['srid']
+                else:
+                    print 'current location does not exist'
+                    args['x'] = 0
+                    args['y'] = 0
+                    print 'current point:',args['x'],args['y'], args['srid']
+            else:
+                print "no: functional scale:", args['functional_scale']
+                #TODO get current location from saved value
+                if self.currentLocation:
+                    print 'current location exists'
+                    args['x'] = self.currentLocation.asPoint().x()
+                    args['y'] = self.currentLocation.asPoint().y()
+                    print 'current point:',args['x'],args['y'], args['srid']
+                else:
+                    print 'current location does not exist'
+                    raise IOError('Current location not found')
+            
+            #SQL Query
+            query = """
+            WITH route as (
+                SELECT * FROM %(results_schema)s.%(tmp_route_table)s
+            ),
+            vertices as (
+                SELECT * FROM %(results_schema)s.%(tmp_vertice_table)s
+            ),
+            current_location as (
+                SELECT ST_GeomFromText('POINT(%(x)f %(y)f)', %(canvas_srid)d) as geom
+            ),
+            scales as (
+                SELECT * FROM %(results_schema)s.%(functional_scales_table)s
+            ),
+            scale as (
+                SELECT * FROM scales WHERE id = %(functional_scale)s
+            ),
+            distance as (
+                SELECT 
+                    CASE WHEN id = 5 THEN (SELECT sum(km)*1000*0.1 FROM route)
+                    ELSE buffer_dist 
+                    END as distance
+                FROM scale
+            )
+            SELECT 
+                CASE WHEN (SELECT id FROM scale) = 5 THEN ST_AsText(ST_Transform(ST_Boundary(ST_Expand(ST_Transform((ST_Collect(r.geom)), 32632), (SELECT distance FROM distance))),4326))
+                ELSE ST_AsText(ST_Transform(ST_Boundary(ST_Expand(ST_Transform((SELECT geom FROM current_location), 32632), (SELECT distance FROM distance))),4326)) 
+                END as geom
+            FROM route as r
+            """ % args
+                
+            print "getFunctionalScaleGeometry query: " + query
+            
+            ##Utils.logMessage(query1)
+            cur = con.cursor()
+            cur.execute(query)
+            row = cur.fetchone()
+            node = None
+            wkt = None
+            this_x = None
+            this_y = None
+            if row:
+                wkt = row[0]
+            
+            print wkt
+            return True, wkt
+            
+        except psycopg2.DatabaseError, e:
+            print "** Database Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except SystemError, e:
+            print "** SystemError Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        except IOError, e:
+            print "** IO Error"
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(), '%s' % e)
+            
+        finally:
+            QApplication.restoreOverrideCursor()
+            if db and db.con:
+                try:
+                    db.con.close()
+                except:
+                    QMessageBox.critical(self.dockwidget, self.dockwidget.windowTitle(),
+                        'server closed the connection unexpectedly')
+                  
+        stop = timeit.default_timer()
+        print('getFunctionalScaleGeometry time: ', stop - start)
+        
 
     def loadSettings(self):
         

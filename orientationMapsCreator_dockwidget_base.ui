@@ -50,7 +50,7 @@
          <x>0</x>
          <y>-666</y>
          <width>462</width>
-         <height>2144</height>
+         <height>2146</height>
         </rect>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout">
@@ -608,6 +608,13 @@
              </property>
              <property name="icon">
               <iconset theme="media-playlist-shuffle"/>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="3">
+            <widget class="QToolButton" name="btnShowFunctionalScale">
+             <property name="text">
+              <string>show</string>
              </property>
             </widget>
            </item>
