@@ -687,7 +687,7 @@ class orientationMapsCreator:
         #print "** updateRouteTableIndexChanged"
         
         dbname = str(self.dockwidget.comboBoxDatabase.currentText())        
-        schema = str(self.dockwidget.comboBoxEdgesSchema.currentText())
+        schema = str(self.dockwidget.comboBoxResultsSchema.currentText())
         table = str(self.dockwidget.comboBoxRouteTable.currentText())
         self.dbRouteTableSettings[dbname+'.'+schema] = table
         
@@ -2650,7 +2650,7 @@ class orientationMapsCreator:
                 END as uniqueness    
                 FROM relation as r
             )
-            SELECT *, (coverage * (category_weight + relation + uniqueness + distance)) as salience
+            SELECT *, (coverage * (category_weight + relation + distance + uniqueness)) as salience
             INTO %(results_schema)s.%(tmp_route_table_osm_er_refined)s
             FROM uniqueness;
             """ % args
@@ -5099,8 +5099,8 @@ class orientationMapsCreator:
                 FROM scale
             )
             SELECT 
-                CASE WHEN (SELECT id FROM scale) = 5 THEN ST_AsText(ST_Transform(ST_Boundary(ST_Expand(ST_Transform((ST_Collect(r.geom)), 32632), (SELECT distance FROM distance))),4326))
-                ELSE ST_AsText(ST_Transform(ST_Boundary(ST_Expand(ST_Transform((SELECT geom FROM current_location), 32632), (SELECT distance FROM distance))),4326)) 
+                CASE WHEN (SELECT id FROM scale) = 5 THEN ST_AsText(ST_Transform(ST_Boundary(ST_Expand(ST_Transform((ST_Collect(r.geom)), 32632), (SELECT distance FROM distance))),%(canvas_srid)d))
+                ELSE ST_AsText(ST_Transform(ST_Boundary(ST_Expand(ST_Transform((SELECT geom FROM current_location), 32632), (SELECT distance FROM distance))),%(canvas_srid)d)) 
                 END as geom
             FROM route as r
             """ % args
