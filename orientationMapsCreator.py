@@ -2397,7 +2397,7 @@ class orientationMapsCreator:
                     ((SELECT sum(km) FROM %(results_schema)s.%(tmp_route_table)s)*1000));
             
             ALTER TABLE %(results_schema)s.%(tmp_route_table_osm_line)s 
-                ALTER COLUMN way TYPE geometry(Geometry,900913) USING ST_MakePolygon(way);
+                ALTER COLUMN way TYPE geometry(Geometry,900913) USING ST_MakePolygon(ST_ForceClosed(way));
 
             DROP TABLE IF EXISTS %(results_schema)s.%(tmp_route_table_osm_polygon)s;
             SELECT * INTO %(results_schema)s.%(tmp_route_table_osm_polygon)s
@@ -2766,10 +2766,6 @@ class orientationMapsCreator:
                     highway = 'services' OR
                     highway = 'traffic_signal' OR
                     junction = 'roundabout' OR
-                    tags -> 'public_transport' IN ('platform') OR
-                    tags -> 'public_transport' IN ('stop_position') OR
-                    tags -> 'public_transport' IN ('stop_area') OR
-                    tags -> 'public_transport' IN ('station') OR
                     railway = 'crossing' OR
                     railway = 'level_crossing' OR
                     railway = 'platform' OR
@@ -2783,7 +2779,8 @@ class orientationMapsCreator:
                     );
             """ % args
                  
-                 
+            print "selectOSMPoints query: " + query
+            
             Utils.logMessage('Query:\n' + query)
             cur.execute(self.cleanQuery(query))
             con.commit()
@@ -3151,6 +3148,8 @@ class orientationMapsCreator:
                     );
             """ % args
                  
+            print "selectOSMLines query: " + query
+            
             Utils.logMessage('Query:\n' + query)
             cur.execute(self.cleanQuery(query))
             con.commit()
@@ -3497,6 +3496,8 @@ class orientationMapsCreator:
                     );
             """ % args
                  
+            print "selectOSMPolygons query: " + query
+            
             Utils.logMessage('Query:\n' + query)
             cur.execute(self.cleanQuery(query))
             con.commit()
