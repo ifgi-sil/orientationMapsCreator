@@ -3484,10 +3484,11 @@ class orientationMapsCreator:
                 SELECT * INTO %(results_schema)s.%(tmp_route_table_osm_al)s 
                 FROM %(osm_schema)s.%(osm_polygons)s 
                 WHERE (
-                    amenity is not null OR
-                    leisure is not null OR
-                    tourism is not null OR
-                    "natural" is not null)
+                    (amenity is not null AND name is not null) OR
+                    (leisure is not null AND name is not null) OR
+                    (tourism is not null AND name is not null) OR
+                    (historic is not null AND name is not null) OR
+                    ("natural" is not null AND name is not null))
                     AND
                     ST_DWithin(
                         (SELECT ST_Transform((SELECT ST_Collect(geom) FROM %(results_schema)s.%(tmp_route_table)s),32632)),
