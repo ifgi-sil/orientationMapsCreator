@@ -28,7 +28,7 @@ repository=https://github.com/heinrichloewen/orientationMapsCreator
 # Tags are comma separated with spaces allowed
 tags=database, openstreetmap, osm, processing, postgis
 
-homepage=https://github.com/heinrichloewen/orientationMapsCreator/issues
+homepage=https://github.com/heinrichloewen/orientationMapsCreator
 category=Plugins
 icon=icon.png
 # experimental flag
