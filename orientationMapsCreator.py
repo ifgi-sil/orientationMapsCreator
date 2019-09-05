@@ -20,7 +20,7 @@ import glob
 import timeit
 
 import sys
-sys.path.append('/usr/share/qgis/python/plugins')   #Import python processing tools
+#sys.path.append('/usr/share/qgis/python/plugins')   #Import python processing tools
 from processing.core.Processing import Processing
 Processing.initialize()
 #from processing.tools import *
@@ -1752,6 +1752,8 @@ class orientationMapsCreator:
                 WHERE a.id = b.id""" % args
             
             print "analyzeRoute query_calculate_angles: " + query_calculate_angles
+            
+            #QMessageBox.information(self.dockwidget, self.dockwidget.windowTitle(), 'Calculate Angle Query:\n' + query_calculate_angles)
             
             Utils.logMessage('Calculate Angles of Route Points:\n' + query_calculate_angles)
             cur.execute(self.cleanQuery(query_calculate_angles))
@@ -3891,7 +3893,7 @@ class orientationMapsCreator:
             
             query = Utils.getMissingFktQuery(fkt)
             
-            print "createMissingFkt: " + query
+            #print "createMissingFkt: " + query
             
             Utils.logMessage('create missing function:\n' + query)
             cur.execute(self.cleanQuery(query))
