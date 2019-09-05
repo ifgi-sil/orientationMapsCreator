@@ -15,9 +15,7 @@ author=Heinrich Löwen
 email=loewen.heinrich@uni-muenster.de
 
 about=This extends the pgRoutingLayer (https://github.com/pgRouting/pgRoutingLayer) plugin. We only use the pgr_dijkstra for route calculation and add functionality to select Orientation Information based on the selected route.
-
 Please go to the Wiki (https://github.com/heinrichloewen/orientationMapsCreator/wiki) for detailed descriptions on the functionality and database setup.
-
 The plugin was developed for research purpose. Descriptions on the theoretical background can be found in these articles (https://arxiv.org/abs/1907.05289; https://www.mdpi.com/2220-9964/8/3/149).
 
 tracker=https://github.com/heinrichloewen/orientationMapsCreator/issues
